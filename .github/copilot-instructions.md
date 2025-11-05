@@ -1,67 +1,59 @@
-## Copilot Instructions
+## AI Agent Operating Guide (Concise)
 
-You are an expert product manager. You focus on organizing information clearly and concisely. You are skilled at breaking down complex topics into simple, easy-to-understand sections. You have a deep understanding of software development processes and can effectively communicate technical concepts to non-technical stakeholders.
+Purpose: Provide immediately actionable knowledge for coding agents in this repository (MCPaaS + dynamic FastMCP server `innovation-engine-mcp`). Keep output factual, concise, and aligned with existing conventions.
 
-You are an expert in Kubernetes, Azure, and AI technologies. You have a strong background in managing projects that involve these technologies and can provide valuable insights and guidance.
+### Architecture Essentials
 
-You are working on a project to develop a comprehensive development and management platform for Model Control Protocol (MCP) servers. The goal of this project is to create a user-friendly interface that allows users to easily create, manage and monitor their MCP servers, including tasks such as deployment, scaling, and maintenance.
+- Root `innovation-engine-mcp/` is a FastMCP server. Entry: `src/main.py` parses --transport (stdio|http) and runs at path `/mcp` in HTTP mode.
+- Dynamic tool discovery: `core/server.py` loads every `*.py` in `src/tools/` (except `__init__.py`) and expects each file to register at least one `@mcp.tool()` function; fail-fast if any tool errors.
+- Configuration: `kmcp.yaml` feeds tool/env config via helper in `core/utils.py` (keep keys stable; add new tool config under `tools:`).
+- HTTP transport endpoint expects JSON-RPC initialize with keys `client` and `protocol.version` (current FastMCP), not `clientInfo` or `protocolVersion`.
 
-More details about the project can be found in the [README.md](../README.md) file and the [docs/](../docs/) directory.
+### Key Workflows
 
-## Repository Structure
+- Environment & deps: Use `uv sync --group dev` (no manual venv management). Tests & lint rely on uv.
+- Run server: `uv run python src/main.py` (stdio) or `uv run python src/main.py --transport http --host 0.0.0.0 --port 3000`.
+- Tasks (VS Code): use predefined tasks (labels start with `uv:`) instead of custom commands when possible.
+- Tests: `scripts/test.sh` or task `uv: pytest (verbose)`. Add new tests under `innovation-engine-mcp/tests/` mirroring existing patterns (see `test_tools.py`, `test_server.py`).
+- Tool addition: create new file `src/tools/<name>.py` with a function decorated by `@mcp.tool()` returning serializable types (prefer plain dict/str). Restart server to load.
 
-The repository is organized into the following key directories and files:
+### Patterns & Conventions
 
-- `.github/`: Contains GitHub-specific configurations, including issue templates, workflows, and prompts for automated agents.
-- `docs/`: Contains documentation related to the project, including design documents, user guides, and technical specifications.
-- `src/`: Contains the source code for the project, including scripts, modules, and other code files.
-- `tests/`: Contains test cases and scripts to ensure the quality and functionality of the project.
-- `README.md`: The main readme file that provides an overview of the project, its purpose, and how to get started.
+- One tool per file; filename becomes logical handle. Keep side effects minimal at import time (only decorator registration).
+- Exec Docs (`docs/*.md`): structure as Introduction, Prerequisites, Setting up the environment, Steps, Summary, Next Steps. All command parameters passed via ALL_CAPS env vars; include `HASH=$(date -u +"%y%m%d%H%M")` for uniqueness.
+- HTTP initialize example (correct schema): `{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"client":{"name":"demo","version":"0.0.1"},"protocol":{"version":"2024-10-22"},"capabilities":{}}}`.
+- Keep lines <=80 chars, use spaces for indentation, avoid em dashes (use hyphen).
+- Prefer fast failure: if a tool cannot import or register, exit with non-zero (do not silently ignore).
 
-## Writing Style
+### Modification Guidance
 
-When writing documentation or code comments, please adhere to the following style guidelines:
+- Adding capabilities: update initialize handling only after verifying FastMCP supports new keys; document schema change in Exec Docs.
+- Extending configuration: append to `kmcp.yaml` under `tools:<toolname>`; access via helper functions (avoid hard-coded env lookups sprinkled through code).
+- Error handling: log and abort startup for load failures; inside tools return structured error text rather than raising unhandled exceptions.
 
-- Use clear and concise language that is easy to understand.
-- Break down complex concepts into simple sections with headings and bullet points.
-- Use active voice and avoid jargon or technical terms that may not be familiar to all readers.
-- Provide examples and use cases to illustrate key points.
-- Ensure consistency in formatting, including headings, bullet points, and code snippets.
-- Use markdown formatting for better readability.
-- When referencing files or directories, use backticks (e.g., `README.md`, `docs/`).
-- When mentioning commands or code snippets, use inline code formatting (e.g., `/todo add`, `--title`).
-- Do not include any personal opinions or subjective statements.
-- Always focus on factual and objective information.
-- Maintain a professional and neutral tone.
-- Avoid using first-person pronouns (e.g., I, we, us) and instead use third-person or passive constructions.
-- Ensure that all information is accurate and up-to-date.
-- Cite sources or references when applicable.
-- Do not use em dashes under any circumstances; use hyphens or parentheses instead.
-- Use spaces not tabs for indentation in code snippets.\
-- Do not hard code the number of a heading level
+### Testing & Quality
 
-## Coding Style
+- For new tool: add a pytest asserting discovery (`server.get_tools_sync()` contains name) and behavior (simple args round-trip).
+- Run `uv run pytest -k <toolname>` for focused iteration.
+- Code quality: optional (only if needed) `uv run ruff check .`, `uv run mypy .`, `uv run black .`.
 
-When writing code, please follow these coding style guidelines:
+### Common Pitfalls
 
-- Follow the language-specific style guides (e.g., PEP 8 for Python, Google Style Guide for JavaScript).
-- Use meaningful variable and function names that convey their purpose.
-- Write modular and reusable code with clear separation of concerns.
-- Include comments to explain complex logic or decisions, but avoid over-commenting.
-- Write unit tests to cover key functionalities and edge cases.
-- Use spaces not tabs for indentation.
-- Limit lines to a maximum of 80 characters for better readability.
-- Use consistent naming conventions (e.g., camelCase, snake_case as appropriate for the language in use) throughout the codebase.
-- Ensure proper error handling and input validation.
-- Follow best practices for security, performance, and scalability.
+- Wrong initialize schema (clientInfo/protocolVersion) causes missing `mcp-session-id` header; ensure client/protocol keys.
+- Forgetting to restart after adding tool => tool not loaded.
+- Adding non-serializable return types from a tool (e.g. complex objects) -> JSON encoding errors.
 
-### Resources
+### External Integration
 
-The following materials are available to help you understand the project we are working on:
+- Kubernetes deployment uses KMCP controller via Exec Docs; treat those markdown files as runnable specs (do not hard-code values; rely on env vars).
+- When updating deployment steps, keep variable-driven approach (no inline literal cluster names).
 
-- [A development platform and control plane for the Model Context Protocol (MCP)](https://github.com/kagent-dev/kmcp)
-- [mcp-dev-tools](https://github.com/rgardler-msft/mcp-dev-tools): A collection of tools and scripts to streamline the development process for MCP projects.
-- [Simplifying MCP Server Management ](https://microsoft-my.sharepoint.com/:w:/p/namanparikh/EfuVFTwrWSdFmABZeN5Xb-wBkQyyGaEFitEREL4YWoV6qg?e=0XFVLG)
-- [Building AI Agents on Azure with MCP: Friction Points and Lessons Learned](https://microsoft-my.sharepoint.com/:w:/p/bradyb/EbkAYZ_XanRFsWPCDSnZyUQBb2nI5_pqYPPhXY_Zpwcy-A?e=gYqQTg)
-- [MCP Server Host Service (CAIN Proposal)](https://microsoft.sharepoint.com/teams/RiskDataEngineering/Shared%20Documents/CAIN/MCP/MCPServerHostService-Design.docx)
-- [Introducing MCP as a Service: an open MCP server management platform](https://manuel.kiessling.net/2025/09/16/introducing-mcp-as-a-service/)
+### References
+
+- Core server: `innovation-engine-mcp/src/core/server.py`
+- Entry point: `innovation-engine-mcp/src/main.py`
+- Tools examples: `innovation-engine-mcp/src/tools/echo.py`, `execute.py`
+- Tests: `innovation-engine-mcp/tests/`
+- Exec Doc example: `docs/OpenWebSearch_On_K8s_Local.md`
+
+Clarifications or missing patterns should be surfaced before large refactors.

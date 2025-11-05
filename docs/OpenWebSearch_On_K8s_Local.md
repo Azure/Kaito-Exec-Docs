@@ -57,8 +57,15 @@ export RATE_LIMIT_QPS="${RATE_LIMIT_QPS:-5}"                      # Approximate 
 export ENABLE_METRICS="${ENABLE_METRICS:-true}"                   # Enable metrics endpoint
 export METRICS_PORT="${METRICS_PORT:-9090}"                       # Metrics port
 
+export MCP_PROTOCOL_VERSION="${MCP_PROTOCOL_VERSION:-2024-10-22}"    # MCP protocol version used in initialize
+export MCP_CLIENT_NAME="${MCP_CLIENT_NAME:-exec-doc}"                # MCP client name for initialize
+export MCP_CLIENT_VERSION="${MCP_CLIENT_VERSION:-0.0.1}"             # MCP client version for initialize
+export MCP_SEARCH_LIMIT="${MCP_SEARCH_LIMIT:-3}"                     # Result limit for MCP search tool
+export MCP_SEARCH_ENGINES="${MCP_SEARCH_ENGINES:-[\"duckduckgo\", \"bing\"]}" # Engines array for MCP search tool
+export MCP_MCP_ENDPOINT="${MCP_ENDPOINT:-http://localhost:${MCP_LOCAL_PORT}/mcp}" # HTTP MCP endpoint base
+export MCP_INIT_FILE="${MCP_INIT_FILE:-/tmp/mcp-init-request.json}"
+
 export TEST_SEARCH_QUERY="${TEST_SEARCH_QUERY:-open source vector database comparison}"                 # Sample query
-export TEST_FETCH_GITHUB_REPO="${TEST_FETCH_GITHUB_REPO:-Aas-ee/open-webSearch}"                       # Sample repo
 ```
 
 Summary: Variables defined for local cluster, image usage, server configuration, search behavior, and test scenarios.
@@ -68,26 +75,46 @@ Summary: Variables defined for local cluster, image usage, server configuration,
 The following command outputs the active values of all parameters for traceability and debugging. This can be re-run after any modification to confirm the effective configuration.
 
 ```bash
-echo "CLUSTER_NAME=${CLUSTER_NAME}"
-echo "KIND_NODE_IMAGE=${KIND_NODE_IMAGE}"
-echo "KIND_CONFIG_FILE=${KIND_CONFIG_FILE}"
-echo "KIND_LOG_LEVEL=${KIND_LOG_LEVEL}"
-echo "KMCP_NAMESPACE=${KMCP_NAMESPACE}"
-echo "SERVER_NAME=${SERVER_NAME}"
-echo "MCP_IMAGE_FULL=${MCP_IMAGE_FULL}"
-echo "MCP_SERVER_NAMESPACE=${MCP_SERVER_NAMESPACE}"
-echo "MCP_LOCAL_PORT=${MCP_LOCAL_PORT}"
-echo "MCP_SERVICE_PORT=${MCP_SERVICE_PORT}"
-echo "KMCP_CRDS_RELEASE_NAME=${KMCP_CRDS_RELEASE_NAME}"
-echo "ALLOWED_SEARCH_ENGINES=${ALLOWED_SEARCH_ENGINES}"
-echo "DEFAULT_SEARCH_ENGINE=${DEFAULT_SEARCH_ENGINE}"
-echo "USE_PROXY=${USE_PROXY}"
-echo "PROXY_URL=${PROXY_URL}"
-echo "RATE_LIMIT_QPS=${RATE_LIMIT_QPS}"
-echo "ENABLE_METRICS=${ENABLE_METRICS}"
-echo "METRICS_PORT=${METRICS_PORT}"
-echo "TEST_SEARCH_QUERY=${TEST_SEARCH_QUERY}"
-echo "TEST_FETCH_GITHUB_REPO=${TEST_FETCH_GITHUB_REPO}"
+# Ensure HASH exists (YYMMDDHHMM)
+: "${HASH:=$(date -u +"%y%m%d%H%M")}"
+
+VARS=(
+  HASH
+  CLUSTER_NAME
+  KIND_NODE_IMAGE
+  KIND_CONFIG_FILE
+  KIND_LOG_LEVEL
+  KMCP_NAMESPACE
+  SERVER_NAME
+  MCP_IMAGE_FULL
+  MCP_SERVER_NAMESPACE
+  MCP_LOCAL_PORT
+  MCP_SERVICE_PORT
+  MCP_MCP_ENDPOINT
+  MCP_INIT_FILE
+  KMCP_CRDS_RELEASE_NAME
+  ALLOWED_SEARCH_ENGINES
+  DEFAULT_SEARCH_ENGINE
+  USE_PROXY
+  PROXY_URL
+  RATE_LIMIT_QPS
+  ENABLE_METRICS
+  METRICS_PORT
+  TEST_SEARCH_QUERY
+  TEST_FETCH_GITHUB_REPO
+  MCP_PROTOCOL_VERSION
+  MCP_CLIENT_NAME
+  MCP_CLIENT_VERSION
+  MCP_SEARCH_LIMIT
+  MCP_SEARCH_ENGINES
+  SEARCH_ENGINES_JSON
+  MCP_SESSION_ID
+  MCP_PORT_FORWARD_PID
+)
+
+for v in "${VARS[@]}"; do
+  printf "%s=%s\n" "$v" "${!v}"
+done
 ```
 
 Summary: Provides a deterministic snapshot of all configured environment variables prior to executing procedural steps.
@@ -196,17 +223,27 @@ Summary: KMCP controller deployed; pods visible in namespace.
 
 ### Clone Open-WebSearch repository
 
+This script can work with the pre-built and published container, or it can work from source. It can be useful in a development environment to have the source available locally, regardless of which approach we are taking. This block will ensure the local working copy of Open-WebSearch source is present by cloning if absent or updating if already cloned.
+
 ```bash
-git clone "https://github.com/Aas-ee/open-webSearch.git" "open-webSearch" || echo "Repo exists"
-cd open-webSearch
-git log -1 --oneline
+if [ -d "open-webSearch/.git" ]; then
+  echo "Repository exists - updating"
+  git -C open-webSearch fetch --all --prune
+  git -C open-webSearch pull --ff-only
+else
+  echo "Cloning repository"
+  git clone https://github.com/Aas-ee/open-webSearch.git open-webSearch
+fi
+
+git -C open-webSearch log -1 --oneline
 ```
 
-Summary: Source code available for build.
+Summary: Repository directory synchronized with remote (clone or fast-forward pull) and latest commit displayed.
 
-### Build and validate locally
+### (Optional) Build and validate locally
 
 ```bash
+cd open-webSearch
 npm install
 npm run build
 node dist/index.js --help | head -n 20
@@ -354,48 +391,65 @@ Port-forward ready (attempt 1)
 
 Summary: Port-forward established with readiness loop ensuring HTTP endpoint responds before subsequent tests.
 
-### Test search endpoint
+### Initialize the MCP Server
+
+Establish a streamable HTTP MCP session. The Open-WebSearch server currently uses
+the pre-2024-10 MCP schema (clientInfo/protocolVersion). Provide those keys even
+though newer servers expect nested objects. The Accept header must advertise both
+`application/json` and `text/event-stream` for FastMCP compatibility.
 
 ```bash
-curl -s "http://localhost:${MCP_LOCAL_PORT}/search?engine=${DEFAULT_SEARCH_ENGINE}&query=$(printf %s "${TEST_SEARCH_QUERY}" | sed 's/ /+/g')" | head -n 30
+unset MCP_SESSION_ID
+cat <<EOF > "${MCP_INIT_FILE}"
+{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"clientInfo":{"name":"${MCP_CLIENT_NAME}","version":"${MCP_CLIENT_VERSION}"},"protocolVersion":"${MCP_PROTOCOL_VERSION}","capabilities":{}}}
+EOF
+
+INIT_HEADERS=$(mktemp)
+curl -sS \
+  -D "${INIT_HEADERS}" \
+  -H 'Content-Type: application/json' \
+  -H 'Accept: application/json, text/event-stream' \
+  --data-binary "@${MCP_INIT_FILE}" \
+  -o /tmp/mcp-init.json \
+  "${MCP_MCP_ENDPOINT}"
+
+MCP_SESSION_ID=$(awk -F': ' 'tolower($1)=="mcp-session-id" {print $2}' "${INIT_HEADERS}" | tr -d '\r')
+if [ -z "${MCP_SESSION_ID}" ]; then
+  echo "Failed to obtain session ID from initialize response";
+  cat /tmp/mcp-init.json || cat "${INIT_HEADERS}"
+else
+  export MCP_SESSION_ID
+  echo "Initialized streamable HTTP session: MCP_SESSION_ID=${MCP_SESSION_ID}";
+fi
+
+rm -f "${MCP_INIT_FILE}" "${INIT_HEADERS}"
 ```
 
-Summary: Search returns structured results for sample query.
+<!-- expected_similarity="Initialized streamable HTTP session:.*" -->
 
-### Test README fetch
+```text
+Initialized streamable HTTP session: MCP_SESSION_ID=9w0-w9e0
+```
 
-Fetch README content and display HTTP status, byte size, top lines, and total line count.
+# Perform a search
 
 ```bash
-echo "Fetching README for ${TEST_FETCH_GITHUB_REPO}"
-RAW_RESPONSE="$(curl -s -w '\nSTATUS:%{http_code}\nBYTES:%{size_download}\n' \
-  "http://localhost:${MCP_LOCAL_PORT}/fetchGithubReadme?repo=${TEST_FETCH_GITHUB_REPO}")"
+[ "$(curl -s -o /dev/null -w '%{http_code}' -H 'Content-Type: application/json' -H "mcp-session-id: $MCP_SESSION_ID" -d '{"jsonrpc":"2.0","id":1,"method":"tools/list","params":{}}' "$MCP_MCP_ENDPOINT")" = 200 ] && echo "Session is active" || echo "Session is inactive"
 
-STATUS="$(printf "%s" "${RAW_RESPONSE}" | awk -F: '/^STATUS:/ {print $2}')"
-BYTES="$(printf "%s" "${RAW_RESPONSE}" | awk -F: '/^BYTES:/ {print $2}')"
-BODY="$(printf "%s" "${RAW_RESPONSE}" | sed '/^STATUS:/d;/^BYTES:/d')"
+MCP_SEARCH_REQUEST=$(cat <<EOF
+{"jsonrpc":"2.0","id":3,"method":"tools/call","params":{"name":"search","arguments":{"query":"${TEST_SEARCH_QUERY}","limit":${MCP_SEARCH_LIMIT},"engines":${SEARCH_ENGINES_JSON}}}}
+EOF
+)
 
-echo "HTTP_STATUS=${STATUS} CONTENT_BYTES=${BYTES}"
-echo "TOTAL_LINES=$(printf "%s" "${BODY}" | wc -l)"
-echo "FIRST_15_LINES:"
-printf "%s" "${BODY}" | head -n 15
-echo "--- END (truncated if more than 15 lines) ---"
+echo "Invoking search tool (endpoint=$MCP_MCP_ENDPOINT, limit=${MCP_SEARCH_LIMIT}, engines=${MCP_SEARCH_ENGINES})"
+curl -s -H 'Content-Type: application/json' -H "mcp-session-id: $MCP_SESSION_ID" \
+  -d "${MCP_SEARCH_REQUEST}" "${MCP_MCP_ENDPOINT}" \
+  | jq '.result.content[0].text' \
+  | sed 's/\\n/\n/g' \
+  | head -n 40
 ```
 
-Summary: Confirms successful README retrieval with status, size, and sample content.
-
-Summary: Repository README content returned.
-
-### Rate limiting probe
-
-```bash
-for i in $(seq 1 8); do
-  curl -s "http://localhost:${MCP_LOCAL_PORT}/search?engine=${DEFAULT_SEARCH_ENGINE}&query=test${i}" | jq '.results | length' || true
-  sleep "$(awk -v q=${RATE_LIMIT_QPS} 'BEGIN{print 1.0/q}')"
-done
-```
-
-Summary: Confirms approximate enforcement of RATE_LIMIT_QPS.
+Summary: Session lifecycle demonstrated (initialize, verify, search, optional keep-alive, delete) using streamable HTTP transport.
 
 <!--
 ### Cleanup (optional)
