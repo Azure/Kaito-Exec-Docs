@@ -64,6 +64,7 @@ export MCP_SEARCH_LIMIT="${MCP_SEARCH_LIMIT:-3}"                     # Result li
 export MCP_SEARCH_ENGINES="${MCP_SEARCH_ENGINES:-[\"duckduckgo\", \"bing\"]}" # Engines array for MCP search tool
 export MCP_MCP_ENDPOINT="${MCP_ENDPOINT:-http://localhost:${MCP_LOCAL_PORT}/mcp}" # HTTP MCP endpoint base
 export MCP_INIT_FILE="${MCP_INIT_FILE:-/tmp/mcp-init-request.json}"
+export SEARCH_ENGINES_JSON="${SEARCH_ENGINES_JSON:-${MCP_SEARCH_ENGINES}}"
 
 export TEST_SEARCH_QUERY="${TEST_SEARCH_QUERY:-open source vector database comparison}"                 # Sample query
 ```
@@ -433,8 +434,11 @@ Initialized streamable HTTP session: MCP_SESSION_ID=9w0-w9e0
 
 # Perform a search
 
+The server requires every JSON-RPC call on the streamable HTTP endpoint to
+advertise both `application/json` and `text/event-stream` in the Accept header.
+
 ```bash
-[ "$(curl -s -o /dev/null -w '%{http_code}' -H 'Content-Type: application/json' -H "mcp-session-id: $MCP_SESSION_ID" -d '{"jsonrpc":"2.0","id":1,"method":"tools/list","params":{}}' "$MCP_MCP_ENDPOINT")" = 200 ] && echo "Session is active" || echo "Session is inactive"
+[ "$(curl -s -o /dev/null -w '%{http_code}' -H 'Content-Type: application/json' -H 'Accept: application/json, text/event-stream' -H "mcp-session-id: $MCP_SESSION_ID" -d '{"jsonrpc":"2.0","id":1,"method":"tools/list","params":{}}' "$MCP_MCP_ENDPOINT")" = 200 ] && echo "Session is active" || echo "Session is inactive"
 
 MCP_SEARCH_REQUEST=$(cat <<EOF
 {"jsonrpc":"2.0","id":3,"method":"tools/call","params":{"name":"search","arguments":{"query":"${TEST_SEARCH_QUERY}","limit":${MCP_SEARCH_LIMIT},"engines":${SEARCH_ENGINES_JSON}}}}
@@ -442,9 +446,10 @@ EOF
 )
 
 echo "Invoking search tool (endpoint=$MCP_MCP_ENDPOINT, limit=${MCP_SEARCH_LIMIT}, engines=${MCP_SEARCH_ENGINES})"
-curl -s -H 'Content-Type: application/json' -H "mcp-session-id: $MCP_SESSION_ID" \
+curl -s -H 'Content-Type: application/json' -H 'Accept: application/json, text/event-stream' -H "mcp-session-id: $MCP_SESSION_ID" \
   -d "${MCP_SEARCH_REQUEST}" "${MCP_MCP_ENDPOINT}" \
-  | jq '.result.content[0].text' \
+  | awk '/^data:/{sub(/^data: /,"",$0); print}' \
+  | jq -r '.result.content[0].text' \
   | sed 's/\\n/\n/g' \
   | head -n 40
 ```
