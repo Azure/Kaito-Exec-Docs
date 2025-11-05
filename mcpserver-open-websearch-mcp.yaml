@@ -1,0 +1,23 @@
+apiVersion: kagent.dev/v1alpha1
+kind: MCPServer
+metadata:
+  name: open-websearch-mcp
+  namespace: default
+spec:
+  transportType: http
+  httpTransport:
+    targetPort: 3000
+    path: /
+  deployment:
+    image: ghcr.io/aas-ee/open-web-search:latest
+    port: 3000
+    env:
+      ALLOWED_SEARCH_ENGINES: "bing,duckduckgo,brave,exa,baidu,csdn,juejin"
+      DEFAULT_SEARCH_ENGINE: "duckduckgo"
+      USE_PROXY: "false"
+      PROXY_URL: ""
+      RATE_LIMIT_QPS: "5"
+      ENABLE_METRICS: "true"
+      METRICS_PORT: "9090"
+      ENABLE_CORS: "true"
+      CORS_ORIGIN: "*"
