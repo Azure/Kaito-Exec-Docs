@@ -17,60 +17,16 @@ before continuing.
 Summary: Guides an engineer through an end-to-end, variable-driven AKS
 deployment of the Open-WebSearch MCP server managed by KMCP.
 
-## Prerequisites
-
-Ensure the following tooling and access before proceeding with the deployment.
-You should already be authenticated to Azure (`az login`) and have sufficient
-quota for the selected region and VM size. Optional local tools support quick
-build validation.
-
-- Azure subscription with required AKS and ACR quota
-- Azure CLI (`az`) with logged-in session
-- KMCP CLI (`kmcp`) matching the desired controller release
-- Docker CLI configured for Azure Container Registry pushes
-- Node.js (>= 18) and npm for building Open-WebSearch assets
-- jq (optional) for parsing JSON responses during validation
-
-```bash
-command -v az >/dev/null || echo "Azure CLI missing"
-command -v kmcp >/dev/null || echo "KMCP CLI missing"
-command -v docker >/dev/null || echo "Docker CLI missing"
-command -v node >/dev/null || echo "Node.js missing"
-command -v npm >/dev/null || echo "npm missing"
-command -v jq >/dev/null || echo "jq missing (optional)"
-```
-
-Summary: Confirms that Azure, KMCP, container tooling, and optional utilities
-are installed and authenticated.
-
 ## Setting up the environment
 
-Define all environment variables used in this document so every command stays
-repeatable. Defaults target a small proof-of-concept deployment and can be
-overridden to match regional policy or scaling expectations. Unique names append
-the timestamp-based `HASH` to avoid collisions.
+Define the environment variables used after AKS provisioning. Azure-specific
+variables (resource group, cluster name, ACR identifiers) are now managed by
+`Create_AKS.md`; this document expects them to already be exported in the
+current shell. Unique names still append the timestamp-based `HASH` to avoid
+collisions when generating new resources (for example, custom images).
 
 ```bash
 export HASH="${HASH:-$(date -u +"%y%m%d%H%M")}"  # YYMMDDHHMM stamp
-
-# Azure identity and region configuration
-export LOCATION="${LOCATION:-eastus2}"
-export SUBSCRIPTION_ID="${SUBSCRIPTION_ID:-$(az account show --query id -o tsv)}"
-export RESOURCE_GROUP="${RESOURCE_GROUP:-rg_openwebsearch_${HASH}}"
-# Hyphen required because AKS cluster names cannot include underscores
-export AKS_CLUSTER_NAME="${AKS_CLUSTER_NAME:-aks-openwebsearch-${HASH}}"
-export AKS_VERSION="${AKS_VERSION:-}"  # Optional Kubernetes version override
-
-# Node pool sizing (counts and SKU must satisfy regional quota)
-export AKS_SYSTEM_NODE_COUNT="${AKS_SYSTEM_NODE_COUNT:-1}"
-export AKS_USER_NODE_COUNT="${AKS_USER_NODE_COUNT:-1}"
-export AKS_NODE_VM_SIZE="${AKS_NODE_VM_SIZE:-Standard_D4s_v5}"
-export AKS_SYSTEM_NODEPOOL_NAME="${AKS_SYSTEM_NODEPOOL_NAME:-system}"
-export AKS_USER_NODEPOOL_NAME="${AKS_USER_NODEPOOL_NAME:-user}"
-
-# Container registry parameters (ACR names must remain alphanumeric)
-export ACR_NAME="${ACR_NAME:-acrwebsearch${HASH}}"
-export ACR_LOGIN_SERVER="${ACR_LOGIN_SERVER:-${ACR_NAME}.azurecr.io}"
 
 # Open-WebSearch image configuration
 export MCP_IMAGE_NAME="${MCP_IMAGE_NAME:-open-websearch-mcp}"
@@ -117,8 +73,37 @@ export TEST_SEARCH_QUERY="${TEST_SEARCH_QUERY:-open source vector database compa
 export TEST_FETCH_GITHUB_REPO="${TEST_FETCH_GITHUB_REPO:-Aas-ee/open-webSearch}"
 ```
 
-Summary: Establishes all Azure, registry, KMCP, and runtime parameters with
-consistent defaults and timestamp-based uniqueness.
+Summary: Ensures runtime variables are ready while asserting that Azure and ACR
+values have been supplied by `docs/Create_AKS.md`.
+
+## Prerequisites
+
+Ensure the following tooling and access before proceeding with the deployment.
+You should already be authenticated to Azure (`az login`) and have sufficient
+quota for the selected region and VM size. Optional local tools support quick
+build validation.
+
+- Azure subscription with required AKS and ACR quota
+- Azure CLI (`az`) with logged-in session
+- KMCP CLI (`kmcp`) matching the desired controller release
+- Docker CLI configured for Azure Container Registry pushes
+- Node.js (>= 18) and npm for building Open-WebSearch assets
+- jq (optional) for parsing JSON responses during validation
+
+```bash
+command -v az >/dev/null || echo "Azure CLI missing"
+command -v kmcp >/dev/null || echo "KMCP CLI missing"
+command -v docker >/dev/null || echo "Docker CLI missing"
+command -v node >/dev/null || echo "Node.js missing"
+command -v npm >/dev/null || echo "npm missing"
+command -v jq >/dev/null || echo "jq missing (optional)"
+```
+
+Run the executable guide to [Creating an AKS Cluster](Create_AKS.md) to validate Azure access, create
+the resource group, provision Azure Container Registry, deploy the AKS cluster,
+add any optional node pools, and attach the registry to the cluster. That guide
+also exports the Azure-related environment variables this document consumes.
+Return here once it reports completion.
 
 ### Verify environment variable values
 
@@ -127,22 +112,16 @@ unexpected names or regions. Re-run this block after adjustments to confirm the
 active settings.
 
 ```bash
-: "${HASH:=$(date -u +"%y%m%d%H%M")}"  # Ensure HASH exists
-
-VARS=(
+REQUIRED_AKS_VARS=(
   HASH
-  LOCATION
-  SUBSCRIPTION_ID
   RESOURCE_GROUP
   AKS_CLUSTER_NAME
-  AKS_VERSION
-  AKS_SYSTEM_NODE_COUNT
-  AKS_USER_NODE_COUNT
-  AKS_NODE_VM_SIZE
-  AKS_SYSTEM_NODEPOOL_NAME
-  AKS_USER_NODEPOOL_NAME
   ACR_NAME
   ACR_LOGIN_SERVER
+)
+
+VARS=(
+  "${REQUIRED_AKS_VARS[@]}"
   MCP_IMAGE_FULL
   OPENWEBSEARCH_REPO_URL
   OPENWEBSEARCH_REPO_DIR
@@ -171,6 +150,7 @@ VARS=(
   SEARCH_ENGINES_JSON
   MCP_ENDPOINT
 )
+
 for v in "${VARS[@]}"; do
   printf "%s=%s\n" "$v" "${!v}"
 done
@@ -183,137 +163,6 @@ quick audits or troubleshooting.
 
 Each step includes purpose, executable commands, and expected outcome so you can
 validate progress before moving forward.
-
-### Check Azure subscription context
-
-Confirm the Azure subscription and provider registrations align with the target
-region and resource types required for AKS and ACR.
-
-```bash
-az account show --query id -o tsv
-az provider register --namespace Microsoft.ContainerService
-az provider register --namespace Microsoft.ContainerRegistry
-```
-
-Summary: Subscription context and provider registrations verified for AKS and
-ACR features.
-
-### Create resource group
-
-Provision a dedicated resource group to hold the AKS cluster, registry, and
-supporting assets for Open-WebSearch.
-
-```bash
-az group create \
-  --name "${RESOURCE_GROUP}" \
-  --location "${LOCATION}" \
-  --output table
-```
-
-Summary: Resource group created in the selected region to host deployment
-resources.
-
-### Provision Azure Container Registry
-
-Create an ACR instance for storing the Open-WebSearch container image and log in
-locally so Docker can push the build output.
-
-```bash
-az acr create \
-  --name "${ACR_NAME}" \
-  --resource-group "${RESOURCE_GROUP}" \
-  --location "${LOCATION}" \
-  --sku Basic \
-  --output table
-az acr login --name "${ACR_NAME}"
-```
-
-Summary: Azure Container Registry is online and the local Docker daemon is
-authenticated for pushes.
-
-### Create AKS cluster
-
-Deploy an AKS cluster sized for evaluation. The system node pool hosts control
-workloads while the optional user pool accommodates application scale testing.
-Check for an existing cluster first to avoid duplicate-name failures.
-
-```bash
-if az aks show \
-  --name "${AKS_CLUSTER_NAME}" \
-  --resource-group "${RESOURCE_GROUP}" >/dev/null 2>&1; then
-  echo "AKS cluster ${AKS_CLUSTER_NAME} already exists in ${RESOURCE_GROUP}";
-  echo "Skip creation or provide a new AKS_CLUSTER_NAME.";
-else
-  az aks create \
-    --name "${AKS_CLUSTER_NAME}" \
-    --resource-group "${RESOURCE_GROUP}" \
-    --location "${LOCATION}" \
-    --generate-ssh-keys \
-    --node-count "${AKS_SYSTEM_NODE_COUNT}" \
-    --nodepool-name "${AKS_SYSTEM_NODEPOOL_NAME}" \
-    --node-vm-size "${AKS_NODE_VM_SIZE}" \
-    ${AKS_VERSION:+--kubernetes-version "${AKS_VERSION}"} \
-    --output table
-fi
-```
-
-Provision a user node pool when requested. The add operation frequently takes
-several minutes and the CLI can time out or be interrupted by network hiccups,
-so running it without `--no-wait` often ends in a failed or aborted session
-even though Azure continues provisioning in the background. Using
-`--no-wait` lets the request return immediately, then `az aks nodepool wait
---created` tracks the authoritative state from Azure. The block first checks
-for an existing pool to avoid duplicate-name failures. This sequence prevents
-"operation in progress" and "node pool already exists" errors and keeps the
-script resilient to temporary CLI disconnects.
-
-```bash
-if [ "${AKS_USER_NODE_COUNT}" -gt 0 ]; then
-  if az aks nodepool show \
-    --cluster-name "${AKS_CLUSTER_NAME}" \
-    --resource-group "${RESOURCE_GROUP}" \
-    --name "${AKS_USER_NODEPOOL_NAME}" >/dev/null 2>&1; then
-    echo "Node pool ${AKS_USER_NODEPOOL_NAME} already exists; skipping add.";
-  else
-    az aks nodepool add \
-      --cluster-name "${AKS_CLUSTER_NAME}" \
-      --resource-group "${RESOURCE_GROUP}" \
-      --name "${AKS_USER_NODEPOOL_NAME}" \
-      --node-count "${AKS_USER_NODE_COUNT}" \
-      --node-vm-size "${AKS_NODE_VM_SIZE}" \
-      --no-wait
-    az aks nodepool wait \
-      --cluster-name "${AKS_CLUSTER_NAME}" \
-      --resource-group "${RESOURCE_GROUP}" \
-      --name "${AKS_USER_NODEPOOL_NAME}" \
-      --created
-  fi
-fi
-
-az aks get-credentials \
-  --name "${AKS_CLUSTER_NAME}" \
-  --resource-group "${RESOURCE_GROUP}" \
-  --overwrite-existing
-kubectl get nodes -o wide
-```
-
-Summary: AKS cluster created when absent, optional user pool requested with
-wait for completion, and kubectl context updated for cluster access.
-
-### Attach ACR to AKS cluster
-
-Grant the AKS cluster pull permissions to the container registry so the MCP
-deployment can retrieve the published image.
-
-```bash
-az aks update \
-  --name "${AKS_CLUSTER_NAME}" \
-  --resource-group "${RESOURCE_GROUP}" \
-  --attach-acr "${ACR_NAME}" \
-  --output table
-```
-
-Summary: AKS cluster now has pull rights to the registry hosting the MCP image.
 
 ### Install KMCP CRDs
 
