@@ -1,4 +1,5 @@
 # ---- Ignore example project subdirectories ----
+aks-mcp/
 innovation-engine-mcp/
 open-webSearch/
 
@@ -83,9 +84,6 @@ test-results/
 # Do NOT ignore provided cluster config YAMLs (e.g. kind-config-openwebsearch.yaml)
 # Uncomment below to ignore local ephemeral overrides:
 # overrides/*.yaml
-
-# ---- MCP / runtime generated content ----
-# Add patterns here if runtime generates large transient files.
 
 # ---- Misc tooling ----
 *.lock.json
