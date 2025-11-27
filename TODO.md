@@ -2,7 +2,7 @@
 
 Preamble:
 
-- Next Available ID: 006
+- Next Available ID: 007
 - Classification Quadrants:
   - HI/U: High Impact / Urgent
   - HI/NU: High Impact / Not Urgent
@@ -28,9 +28,9 @@ Subtasks (optional):
 
 - [x] Define environment variables and resource naming conventions
 - [x] Create or select Azure resource group
-- [ ] Do we need ACR, currently it is an optional step, should we leave it until later?
-- [ ] Provision AKS cluster (system + user node pools as needed)
-- [ ] Install KMCP (controller, CRDs) into cluster
+- [x] Do we need ACR, currently it is an optional step, should we leave it until later?
+- [x] Provision AKS cluster (system + user node pools as needed)
+- [x] Install KMCP (controller, CRDs) into cluster
 - [ ] Scaffold Echo MCP server (using KMCP tooling) if not already present
 - [ ] Build and push Echo server container image to ACR
 - [ ] Create necessary Kubernetes manifests / KMCP CRs
@@ -69,13 +69,13 @@ Subtasks (optional):
 - [x] Install KMCP CRDs
 - [x] Clone OpenWebSearch Repo
 - [x] Create KMCP scaffold wrapper if required (or validate direct MCP usage via npx)
-- [ ] Implement container build (Dockerfile / compose alignment) for MCPaaS baseline
-- [ ] Implement configuration profiles (stdio, http, streamableHttp, sse)
-- [ ] Add environment variable policy & defaults (ALLOWED_SEARCH_ENGINES, PROXY_URL, DEFAULT_SEARCH_ENGINE)
+- [x] Implement container build (Dockerfile / compose alignment) for MCPaaS baseline
+- [x] Implement configuration profiles (stdio, http, streamableHttp, sse)
+- [x] Add environment variable policy & defaults (ALLOWED_SEARCH_ENGINES, PROXY_URL, DEFAULT_SEARCH_ENGINE)
 - [ ] Integrate secrets & proxy configuration (USE_PROXY gating, CORS settings)
-- [ ] Local run validation (npx, node build output, search tool basic query)
-- [ ] Tool invocation tests: search, fetchCsdnArticle, fetchLinuxDoArticle, fetchGithubReadme, fetchJuejinArticle
-- [ ] Add MCP client config examples (Cherry Studio, VS Code, NPX Command Line, SSE)
+- [x] Local run validation (npx, node build output, search tool basic query)
+- [x] Tool invocation tests: search, fetchCsdnArticle, fetchLinuxDoArticle, fetchGithubReadme, fetchJuejinArticle
+- [x] Add MCP client config examples (Cherry Studio, VS Code, NPX Command Line, SSE)
 - [ ] Performance baseline (p50 latency, memory footprint under concurrent searches)
 - [ ] Implement rate limiting / backoff strategy (document approach)
 - [ ] Logging & audit integration (structure: query, engines, result count, user)
@@ -148,6 +148,112 @@ This is working to the point of deployment but failing to pass the test. To repr
 - Latency p50 < 300ms for standard search queries (baseline region)
 - Audit log captures each operation with principal and timestamp
 - Documentation includes resource list, sample requests, and error handling
+
+### [006] Fine-Tune Phi-3 Mini (QLoRA) on AKS via KAITO Exec Doc
+
+**Status:** open
+**Created:** 2025-11-20
+
+#### Description
+
+Author an executable documentation (Exec Doc) that guides users through
+fine-tuning the `Phi-3-mini-128k-instruct` (or successor `Phi-4-mini` if
+available) model on AKS using the KAITO AI toolchain operator with the
+QLoRA method. The doc will cover environment setup, GPU quota checks,
+add-on enablement verification, workspace tuning specification, dataset
+ingestion (e.g. Dolly 15k), monitoring tuning progress, producing and
+pushing an optimized image, validating inference quality, and cleanup.
+All commands parameterized via environment variables and structured in
+the standard Exec Doc sections (Introduction, Prerequisites, Setting up
+the environment, Steps, Summary, Next Steps) with `HASH` uniqueness.
+
+Subtasks (optional):
+
+- [ ] Create new exec doc file `docs/incubation/Fine_Tune_Phi_3_On_AKS_With_Kaito.md`
+- [ ] Define environment variables (HASH, LOCATION, SUBSCRIPTION_ID,
+      RESOURCE_GROUP, AKS_CLUSTER_NAME, WORKSPACE_NAME, MODEL_NAME,
+      TUNING_METHOD, DATASET_URL, SECONDARY_DATASET_URL, REGISTRY_NAME,
+      REGISTRY_SERVER, OUTPUT_IMAGE_REPO, OUTPUT_IMAGE_TAG, GPU_SKU,
+      KAITO_VM_SIZE, IDENTITY_NAME) with sensible defaults
+- [ ] Add GPU quota and SKU availability pre-flight check block
+- [ ] Add Azure CLI version gate (reuse existing logic) and tools check
+- [ ] Insert KAITO add-on enablement verification block (non-mutating)
+- [ ] Author workspace tuning YAML (tuning.method=qlora, input dataset
+      URLs, output.image, instanceType=${KAITO_VM_SIZE}) via heredoc
+- [ ] Implement readiness and tuning phase polling loops with status
+      condition parsing
+- [ ] Add verification section: workspace status, image presence in ACR,
+      sample inference prompt quality comparison (pre vs post tuning)
+- [ ] Include expected_similarity tests for major bash blocks
+- [ ] Provide timing/cost guidance and estimated GPU hour calculation
+- [ ] Add cleanup section (delete workspace, images, resource group opt)
+- [ ] Cross-link from existing KAITO install doc and README
+- [ ] Add dataset licensing and responsible AI notes
+- [ ] Update changelog (if present) referencing new exec doc
+- [ ] Final review for line length <=80 and style compliance
+
+#### Stakeholders
+
+Platform Engineering, AI/ML, Documentation, Governance/Compliance
+
+#### Notes
+
+Reference blog source: Roy Kim fine-tuning series (external).
+Source (Part 1 Intro): https://roykim.ca/2025/01/11/deep-dive-into-fine-tuning-an-lm-using-kaito-on-aks-part-1-intro/
+Ensure
+dataset license (Dolly 15k) acknowledged. Consider optional switch to
+`Phi-4-mini` once stable. Include guardrails for large dataset sizes and
+quota escalation steps. Provide fallback path when `jq` is missing.
+Document that QLoRA reduces VRAM usage; mention alternative methods
+(full fine-tune, LoRA) with trade-offs. Avoid hard-coding regions.
+
+#### Acceptance Criteria
+
+- New exec doc file exists with required structured sections
+- All environment variables documented with defaults and uniqueness
+- GPU quota and SKU checks run successfully and produce actionable
+  messages on failure
+- Workspace tuning YAML applied and reaches Succeeded (or Completed)
+  status for tuning phase
+- Output image built, tagged `${OUTPUT_IMAGE_REPO}:${OUTPUT_IMAGE_TAG}`
+  and pushed to `${REGISTRY_SERVER}`
+- Inference test after tuning shows qualitative improvement (example
+  prompt comparison captured) and is reproducible
+- Verification section runs end-to-end without mutation except where
+  explicitly stated
+- Expected similarity tests present for at least: env var export block,
+  quota/SKU check, workspace YAML creation/apply, readiness polling,
+  verification script
+- Cleanup instructions validated (no orphaned GPU nodes or images)
+- Cross-links added (KAITO install doc + README) and no broken references
+- Line width adherence, no em dashes, consistent indentation
+
+#### Priority
+
+HI/NU (High Impact / Not Urgent) - foundational advanced KAITO scenario
+that unlocks model adaptation workflows.
+
+#### Risks
+
+- GPU quota insufficiency causing tuning delays
+- Dataset license misuse if not clarified
+- Image push failures due to ACR auth or naming conflicts
+- Long-running tuning incurring unexpected cost (need early abort path)
+
+#### Mitigations
+
+- Pre-flight quota/SKU checks and escalation guidance
+- License note and link to dataset terms
+- `az acr login` validation and unique tagging with `_${HASH}` suffix
+- Poll loop with max duration + user notice for early stop procedure
+
+#### Success Metrics
+
+- Exec doc executes successfully in two regions (e.g. eastus, westus3)
+- Tuning completes within documented expected time window
+- Post-tuned model yields higher relevance score or reduced hallucination
+  rate in sample evaluation (qualitative + optional quantitative metric)
+- Positive internal adoption (tracked via follow-up tasks or feedback)
 
 ### LI/U
 

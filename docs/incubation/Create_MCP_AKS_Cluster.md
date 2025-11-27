@@ -48,7 +48,7 @@ Unique resource names append the dynamic `HASH` suffix to avoid collisions. Here
 we use a timestamp-based hash (YYMMDDHHMM).
 
 ```bash
-export HASH=$(date -u +"%y%m%d%H%M")
+export HASH="${HASH:-$(date -u +"%y%m%d%H%M")}"
 ```
 
 We need to define the subscription and location to use for the resuorces. By default we
@@ -56,15 +56,15 @@ are using the currently selected account. This command assumes that you have alr
 into Azure with `az login`.
 
 ```bash
-export SUBSCRIPTION_ID="$(az account show --query id -o tsv)"  # or set manually
-export LOCATION="eastus2"  # default region updated (ensure required quotas/providers are available)
+export AZURE_SUBSCRIPTION_ID="${AZURE_SUBSCRIPTION_ID:-$(az account show --query id -o tsv)}"  # Active subscription
+export AZURE_LOCATION="${AZURE_LOCATION:-eastus2}"  # Default region (ensure required quotas/providers are available)
 ```
 
 Resources in Azure need human readable names for convenience:
 
 ```bash
 # Resource group and cluster names (unique where needed)
-export RESOURCE_GROUP="mcpaks-rg_${HASH}"
+export AZURE_RESOURCE_GROUP="mcpaks-rg_${HASH}"
 export AKS_NAME="mcpaks-cluster"
 ```
 
@@ -106,6 +106,34 @@ export TAG_ENV="dev"
 export WAIT_ROLLOUT="300"
 ```
 
+```bash
+# Variable summary (normalized Azure naming)
+VARS=(
+  HASH
+  AZURE_SUBSCRIPTION_ID
+  AZURE_LOCATION
+  AZURE_RESOURCE_GROUP
+  AKS_NAME
+  NODE_COUNT
+  NODE_ARCH
+  NODE_VM_SIZE
+  INCLUDE_BURSTABLE
+  K8S_VERSION
+  ACR_NAME
+  ACR_SKU
+  KMCP_NAMESPACE
+  KMCP_VERSION
+  KMCP_OCI_BASE
+  KMCP_CRDS_CHART
+  KMCP_CORE_CHART
+  KMCP_CRDS_RELEASE
+  KMCP_CORE_RELEASE
+  TAG_ENV
+  WAIT_ROLLOUT
+)
+for v in "${VARS[@]}"; do printf "%s=%s\n" "$v" "${!v}"; done
+```
+
 Summary: Environment variables have been defined with sensible defaults. The
 `HASH` ensures uniqueness for resources that require globally unique names.
 
@@ -125,7 +153,7 @@ Authenticate to Azure and set the active subscription context.
 
 ```bash
 az account show >/dev/null 2>&1 || az login
-az account set --subscription "${SUBSCRIPTION_ID}"
+az account set --subscription "${AZURE_SUBSCRIPTION_ID}"
 ```
 
 Summary: Azure CLI is authenticated and the working subscription is set.
@@ -136,8 +164,8 @@ Create a dedicated resource group for the cluster and supporting assets.
 
 ```bash
 az group create \
-  --name "${RESOURCE_GROUP}" \
-  --location "${LOCATION}" \
+  --name "${AZURE_RESOURCE_GROUP}" \
+  --location "${AZURE_LOCATION}" \
   --tags env=${TAG_ENV} system=mcp controlplane=kmcp
 ```
 
@@ -151,13 +179,13 @@ step can be skipped if using public images only.
 ```bash
 az acr create \
   --name "${ACR_NAME}" \
-  --resource-group "${RESOURCE_GROUP}" \
+  --resource-group "${AZURE_RESOURCE_GROUP}" \
   --sku "${ACR_SKU}" \
-  --location "${LOCATION}" \
+  --location "${AZURE_LOCATION}" \
   --tags env=${TAG_ENV} system=mcp
 
 # Capture ACR resource ID for role assignment
-export ACR_ID=$(az acr show -n "${ACR_NAME}" -g "${RESOURCE_GROUP}" --query id -o tsv)
+export ACR_ID=$(az acr show -n "${ACR_NAME}" -g "${AZURE_RESOURCE_GROUP}" --query id -o tsv)
 ```
 
 Summary: ACR is provisioned and ready for image pushes and pulls.
@@ -300,9 +328,9 @@ governance.
 
 ```bash
 AKS_CREATE_CMD=(az aks create \
-  --resource-group "${RESOURCE_GROUP}" \
+  --resource-group "${AZURE_RESOURCE_GROUP}" \
   --name "${AKS_NAME}" \
-  --location "${LOCATION}" \
+  --location "${AZURE_LOCATION}" \
   --node-count "${NODE_COUNT}" \
   --node-vm-size "${NODE_VM_SIZE}" \
   --enable-oidc-issuer \
@@ -313,7 +341,7 @@ AKS_CREATE_CMD=(az aks create \
 if [ -n "${K8S_VERSION}" ]; then
   AKS_CREATE_CMD+=(--kubernetes-version "${K8S_VERSION}")
 fi
-if az acr show -n "${ACR_NAME}" -g "${RESOURCE_GROUP}" >/dev/null 2>&1; then
+if az acr show -n "${ACR_NAME}" -g "${AZURE_RESOURCE_GROUP}" >/dev/null 2>&1; then
   AKS_CREATE_CMD+=(--attach-acr "${ACR_NAME}")
 fi
 
@@ -333,7 +361,7 @@ Download and merge cluster credentials into the local kubeconfig for kubectl.
 
 ```bash
 az aks get-credentials \
-  --resource-group "${RESOURCE_GROUP}" \
+  --resource-group "${AZURE_RESOURCE_GROUP}" \
   --name "${AKS_NAME}" \
   --overwrite-existing
 
@@ -419,7 +447,7 @@ Delete created resources to avoid ongoing costs when the environment is no
 longer needed.
 
 ```bash
-az group delete --name "${RESOURCE_GROUP}" --yes --no-wait
+az group delete --name "${AZURE_RESOURCE_GROUP}" --yes --no-wait
 ```
 
 Summary: Resource group deletion schedules removal of all contained assets.

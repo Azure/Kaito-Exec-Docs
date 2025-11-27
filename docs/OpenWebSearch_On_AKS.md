@@ -114,7 +114,7 @@ active settings.
 ```bash
 REQUIRED_AKS_VARS=(
   HASH
-  RESOURCE_GROUP
+  AZURE_RESOURCE_GROUP
   AKS_CLUSTER_NAME
   ACR_NAME
   ACR_LOGIN_SERVER
@@ -483,7 +483,7 @@ Remove local port-forward and Azure resources when experimentation concludes.
 ```bash
 kill "${MCP_PORT_FORWARD_PID}" 2>/dev/null || true
 kubectl delete mcpserver "${SERVER_NAME}" -n "${MCP_SERVER_NAMESPACE}" || true
-az group delete --name "${RESOURCE_GROUP}" --yes --no-wait || true
+az group delete --name "${AZURE_RESOURCE_GROUP}" --yes --no-wait || true
 ```
 
 Summary: Initiated teardown of MCP deployment, Kubernetes resources, and Azure

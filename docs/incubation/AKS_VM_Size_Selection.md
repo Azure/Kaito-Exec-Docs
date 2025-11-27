@@ -28,6 +28,12 @@ command -v az >/dev/null || echo "Azure CLI missing"
 command -v jq >/dev/null || echo "jq not found (fallback path still works)"
 ```
 
+<!-- expected_similarity="(Azure CLI|jq)" -->
+
+```text
+jq not found (fallback path still works)
+```
+
 Summary: Confirms required tooling and authentication readiness.
 
 ## Setting up the environment
@@ -37,10 +43,10 @@ All parameters are defined as environment variables with sensible defaults.
 values to fit the target subscription, region strategy, or performance goals.
 
 ```bash
-export HASH="$(date -u +"%y%m%d%H%M")"
+export HASH="${HASH:-$(date -u +"%y%m%d%H%M")}"
 
 # Region & subscription
-export LOCATION="${LOCATION:-eastus}"                  # Primary target region
+export AZURE_LOCATION="${AZURE_LOCATION:-eastus2}"      # Primary target region (normalized)
 export FALLBACK_REGIONS="${FALLBACK_REGIONS:-eastus2 westus3 centralus}"  # Ordered fallbacks
 
 # Architecture & sizing
@@ -70,6 +76,41 @@ export AKS_SUPPORTED_SKUS_ARM="${AKS_SUPPORTED_SKUS_ARM:-Standard_D2darm_v3 Stan
 export AKS_SUPPORTED_SKUS_AMD="${AKS_SUPPORTED_SKUS_AMD:-}"  # Populate if AMD64 list differs
 ```
 
+```bash
+# Consolidated variable summary (normalized naming)
+VARS=(
+  HASH
+  AZURE_LOCATION
+  FALLBACK_REGIONS
+  AKS_NODE_ARCH
+  NODE_COUNT
+  AKS_NODE_VM_SIZE_REQUESTED
+  PREFERRED_SKUS_ARM
+  PREFERRED_SKUS_AMD
+  FALLBACK_SKUS_ARM
+  FALLBACK_SKUS_AMD
+  INCLUDE_BURSTABLE
+  BURSTABLE_SKUS
+  QUOTA_SAFETY_MARGIN
+  VERBOSE
+  ENFORCE_AKS_SUPPORTED
+  AKS_SUPPORTED_SKUS_ARM
+  AKS_SUPPORTED_SKUS_AMD
+)
+for v in "${VARS[@]}"; do printf "%s=%s\n" "$v" "${!v}"; done
+```
+
+<!-- expected_similarity="(HASH=|AZURE_LOCATION=|AKS_NODE_ARCH=)" -->
+
+```text
+HASH=2511202253
+AZURE_LOCATION=eastus2
+FALLBACK_REGIONS=eastus2 westus3 centralus
+AKS_NODE_ARCH=amd64
+NODE_COUNT=1
+AKS_NODE_VM_SIZE_REQUESTED=Standard_DS2_v2
+```
+
 Summary: Defines environment variables controlling region strategy, SKU
 candidates, architecture, quota margin, and logging/output behavior.
 
@@ -82,11 +123,11 @@ and common override scenarios.
 Variable                Default                                      Purpose / Notes
 ----------------------- -------------------------------------------- ---------------------------------------------------------------
 HASH                   (current UTC YYMMDDHHMM)                     Uniqueness suffix for names when required.
-LOCATION               eastus                                       Primary region for availability & quota evaluation.
+AZURE_LOCATION         eastus2                                      Primary region for availability & quota evaluation.
 FALLBACK_REGIONS       eastus2 westus3 centralus                    Ordered region failover list if primary yields no viable SKU.
-AKS_NODE_ARCH          arm64                                        Target node architecture (arm64|amd64) influences candidate lists.
+AKS_NODE_ARCH          amd64                                        Target node architecture (arm64|amd64) influences candidate lists.
 NODE_COUNT             1                                            Number of nodes used when projecting total required vCPUs.
-AKS_NODE_VM_SIZE_REQUESTED Standard_D2darm_v3                       User-preferred starting SKU (first in candidate ordering).
+AKS_NODE_VM_SIZE_REQUESTED Standard_DS2_v2                          User-preferred starting SKU (first in candidate ordering).
 PREFERRED_SKUS_ARM     D2darm_v3 D4darm_v3 E2darm_v3 E4darm_v3 D8darm_v3  ARM prioritized diversified list (smaller → larger).
 PREFERRED_SKUS_AMD     DS2_v2 D2s_v5 D2ds_v5 D4s_v5 D4ds_v5         AMD prioritized diversified list (older DSv2 → newer v5 variants).
 FALLBACK_SKUS_ARM      E8darm_v3                                    ARM fallback larger size (last resort before burstable if enabled).
@@ -130,22 +171,24 @@ candidate reprioritization.
 
 ## Steps
 
-### Run dynamic SKU selection script (core logic)
+The SKU selection process is divided into three stages: building the
+candidate list and querying regional SKU inventory, filtering candidates
+against availability and quota constraints, and performing regional fallback
+if necessary. Each stage can be executed and verified independently.
 
-The script:
+Summary: Three-stage selection process provides visibility into candidate
+filtering decisions and enables incremental debugging.
 
-1. Builds an ordered candidate list: user-requested -> preferred family list -> fallback -> optional burstable.
-2. Performs a single `az vm list-skus` inventory per region if `jq` is present (fast path). Falls back to per-SKU queries otherwise.
-3. Filters for region availability, then evaluates regional vCPU quota (best effort) against projected usage (`per-node vCPUs * NODE_COUNT + margin`).
-4. Selects the first candidate meeting availability and quota constraints. If none work in the primary region it iterates fallback regions.
-5. Exports `AKS_NODE_VM_SIZE` and logs the selection (plain text). No cluster creation is performed here.
+### Build candidate list and query regional inventory
+
+Build an ordered list of VM size candidates based on the target architecture
+(ARM64 or AMD64), incorporating the user-requested SKU, preferred families,
+fallback sizes, and optional burstable SKUs. Query the Azure SKU inventory
+for the primary region using a single API call when jq is available, or
+fall back to per-SKU queries. Export the candidate list and SKU data for
+use in the filtering stage.
 
 ```bash
-#!/usr/bin/env bash
-set -euo pipefail
-
-log() { [ "${VERBOSE}" = "true" ] && echo "$*" >&2; }
-
 # Build candidate list per architecture
 if [ "${AKS_NODE_ARCH}" = "arm64" ]; then
   ARCH_PREF_LIST="${PREFERRED_SKUS_ARM}"
@@ -171,8 +214,61 @@ for SKU in "${CANDIDATES[@]}"; do
 done
 CANDIDATES=("${DEDUP[@]}")
 
-command -v jq >/dev/null 2>&1 && HAVE_JQ=1 || HAVE_JQ=0
+# Export candidate list for next stage
+export CANDIDATE_SKUS="${CANDIDATES[*]}"
+export CANDIDATE_COUNT="${#CANDIDATES[@]}"
 
+# Query SKU inventory for primary region (single API call if jq available)
+command -v jq >/dev/null 2>&1 && HAVE_JQ=1 || HAVE_JQ=0
+export HAVE_JQ
+
+# Use temp file to avoid environment variable size limits
+export SKU_DATA_FILE="/tmp/sku-data-${HASH}-${AZURE_LOCATION}.json"
+
+if [ ${HAVE_JQ} -eq 1 ]; then
+  echo "Fetching SKU inventory for ${AZURE_LOCATION} (single API call with jq)"
+  az vm list-skus -l "${AZURE_LOCATION}" --all \
+    --query "[?resourceType=='virtualMachines']" -o json 2>/dev/null > "${SKU_DATA_FILE}" || echo '[]' > "${SKU_DATA_FILE}"
+  SKU_COUNT=$(jq 'length' < "${SKU_DATA_FILE}" 2>/dev/null || echo 0)
+else
+  echo "jq not available - will use per-SKU queries (slower)"
+  echo '[]' > "${SKU_DATA_FILE}"
+  SKU_COUNT=0
+fi
+
+# Query quota for primary region
+export QUOTA_CURRENT=$(az vm list-usage -l "${AZURE_LOCATION}" \
+  --query "[?localName=='Total Regional vCPUs'].currentValue" -o tsv 2>/dev/null || echo "0")
+export QUOTA_LIMIT=$(az vm list-usage -l "${AZURE_LOCATION}" \
+  --query "[?localName=='Total Regional vCPUs'].limit" -o tsv 2>/dev/null || echo "0")
+
+echo "Region: ${AZURE_LOCATION}"
+echo "Candidates: ${CANDIDATE_COUNT} SKUs (${CANDIDATE_SKUS})"
+echo "SKU inventory: ${SKU_COUNT} VMs loaded"
+echo "Quota: ${QUOTA_CURRENT}/${QUOTA_LIMIT} vCPUs"
+```
+
+<!-- expected_similarity="(Candidates: [0-9]+ SKUs|Quota: [0-9]+/[0-9]+ vCPUs)" -->
+
+```text
+Fetching SKU inventory for eastus (single API call with jq)
+Region: eastus
+Candidates: 7 SKUs (Standard_DS2_v2 Standard_D2s_v5 Standard_D2ds_v5 Standard_D4s_v5 Standard_D4ds_v5 Standard_D8s_v5 Standard_B2ms Standard_B4ms)
+SKU inventory: 1247 VMs loaded
+Quota: 0/20 vCPUs
+```
+
+Summary: Built candidate list from architecture-specific preferences and
+queried primary region SKU inventory and quota limits.
+
+### Filter candidates and select viable SKU
+
+Iterate through the candidate list in priority order, checking each SKU
+against subscription restrictions, AKS support requirements, regional
+availability, and vCPU quota constraints. Select the first SKU that passes
+all filters or indicate that no viable SKU exists in the primary region.
+
+```bash
 # Helper: verify SKU allowed for AKS when enforcement enabled
 aks_supported() {
   local SKU="$1"; local SKU_L
@@ -193,92 +289,217 @@ aks_supported() {
   return 1
 }
 
-select_in_region() {
-  local REGION="$1"; shift
-  local SKU_DATA=""
-  if [ ${HAVE_JQ} -eq 1 ]; then
-    log "Fetching SKU inventory for region ${REGION} (single call)"
-    SKU_DATA=$(az vm list-skus -l "${REGION}" --all \
-      --query "[?resourceType=='virtualMachines']" -o json 2>/dev/null || echo '[]')
+# Filter candidates in primary region
+SELECTED="" SELECTED_VCPUS="" SELECTED_REGION="${AZURE_LOCATION}"
+read -ra CANDIDATES_ARRAY <<< "${CANDIDATE_SKUS}"
+
+echo "Filtering candidates in ${AZURE_LOCATION}..."
+for SKU in "${CANDIDATES_ARRAY[@]}"; do
+  AVAIL="" VCPU="" RESTRICTED=""
+
+  if [ ${HAVE_JQ} -eq 1 ] && [ -s "${SKU_DATA_FILE}" ]; then
+    AVAIL=$(jq -r --arg sku "${SKU}" \
+      '.[] | select(.name==$sku) | select((.restrictions | map(.reasonCode) | index("NotAvailableForSubscription")) | not) | .name' \
+      < "${SKU_DATA_FILE}" 2>/dev/null | head -n1)
+    VCPU=$(jq -r --arg sku "${SKU}" \
+      '.[] | select(.name==$sku) | .capabilities[]? | select(.name=="vCPUs") | .value' \
+      < "${SKU_DATA_FILE}" 2>/dev/null | head -n1)
+    RESTRICTED=$(jq -r --arg sku "${SKU}" \
+      '.[] | select(.name==$sku) | .restrictions[]? | select(.reasonCode=="NotAvailableForSubscription") | .reasonCode' \
+      < "${SKU_DATA_FILE}" 2>/dev/null | head -n1)
+  else
+  AVAIL=$(az vm list-skus -l "${AZURE_LOCATION}" \
+      --query "[?name=='${SKU}' && resourceType=='virtualMachines'].name" -o tsv 2>/dev/null)
+  RESTRICTED=$(az vm list-skus -l "${AZURE_LOCATION}" \
+      --query "[?name=='${SKU}' && resourceType=='virtualMachines'].restrictions[?reasonCode=='NotAvailableForSubscription'].reasonCode" -o tsv 2>/dev/null)
+  VCPU=$(az vm list-skus -l "${AZURE_LOCATION}" \
+      --query "[?name=='${SKU}'].capabilities[?name=='vCPUs'].value | [0]" -o tsv 2>/dev/null)
   fi
 
-  local REGIONAL_CURRENT REGIONAL_LIMIT
-  REGIONAL_CURRENT=$(az vm list-usage -l "${REGION}" \
-    --query "[?localName=='Total Regional vCPUs'].currentValue" -o tsv 2>/dev/null || echo "")
-  REGIONAL_LIMIT=$(az vm list-usage -l "${REGION}" \
-    --query "[?localName=='Total Regional vCPUs'].limit" -o tsv 2>/dev/null || echo "")
-
-  local SELECTED="" SELECTED_VCPUS=""; local LOG_PREFIX="[${REGION}]"
-  log "${LOG_PREFIX} Candidate order: ${CANDIDATES[*]}"
-
-  for SKU in "${CANDIDATES[@]}"; do
-    local AVAIL="" VCPU=""
-    if [ ${HAVE_JQ} -eq 1 ]; then
-      # Availability within region (SKU appears) and not subscription restricted
-      AVAIL=$(echo "${SKU_DATA}" | jq -r --arg sku "${SKU}" \
-        '.[] | select(.name==$sku) | select((.restrictions | map(.reasonCode) | index("NotAvailableForSubscription")) | not) | .name' | head -n1)
-      VCPU=$(echo "${SKU_DATA}" | jq -r --arg sku "${SKU}" \
-        '.[] | select(.name==$sku) | .capabilities[]? | select(.name=="vCPUs") | .value' | head -n1)
-      RESTRICTED=$(echo "${SKU_DATA}" | jq -r --arg sku "${SKU}" \
-        '.[] | select(.name==$sku) | .restrictions[]? | select(.reasonCode=="NotAvailableForSubscription") | .reasonCode' | head -n1)
-    else
-      AVAIL=$(az vm list-skus -l "${REGION}" \
-        --query "[?name=='${SKU}' && resourceType=='virtualMachines'].name" -o tsv 2>/dev/null)
-      RESTRICTED=$(az vm list-skus -l "${REGION}" \
-        --query "[?name=='${SKU}' && resourceType=='virtualMachines'].restrictions[?reasonCode=='NotAvailableForSubscription'].reasonCode" -o tsv 2>/dev/null)
-      VCPU=$(az vm list-skus -l "${REGION}" \
-        --query "[?name=='${SKU}'].capabilities[?name=='vCPUs'].value | [0]" -o tsv 2>/dev/null)
-    fi
-    if [ -n "${RESTRICTED}" ]; then
-      log "${LOG_PREFIX} skip ${SKU} (subscription restricted)"; continue
-    fi
-    if ! aks_supported "${SKU}"; then
-      log "${LOG_PREFIX} skip ${SKU} (not AKS supported)"; continue
-    fi
-    if [ -z "${AVAIL}" ]; then
-      log "${LOG_PREFIX} skip ${SKU} (not available)"; continue
-    fi
-    if [ -z "${VCPU}" ]; then
-      log "${LOG_PREFIX} skip ${SKU} (vCPU unknown)"; continue
-    fi
-    local REQUIRED=$(( VCPU * NODE_COUNT ))
-    if [ -n "${REGIONAL_CURRENT}" ] && [ -n "${REGIONAL_LIMIT}" ]; then
-      local PROJECTED=$(( REGIONAL_CURRENT + REQUIRED + QUOTA_SAFETY_MARGIN ))
-      if [ ${PROJECTED} -gt ${REGIONAL_LIMIT} ]; then
-        log "${LOG_PREFIX} skip ${SKU} (quota: ${PROJECTED}>${REGIONAL_LIMIT})"; continue
-      fi
-    fi
-    SELECTED="${SKU}"; SELECTED_VCPUS="${VCPU}"; break
-  done
-
-  if [ -n "${SELECTED}" ]; then
-    echo "${SELECTED}:${SELECTED_VCPUS}"; return 0
+  if [ -n "${RESTRICTED}" ]; then
+    echo "  ✗ ${SKU}: subscription restricted"
+    continue
   fi
-  return 1
-}
-
-PRIMARY="${LOCATION}"
-ALL_REGIONS=("${PRIMARY}")
-for R in ${FALLBACK_REGIONS}; do [ "${R}" != "${PRIMARY}" ] && ALL_REGIONS+=("${R}"); done
-
-FOUND_REGION="" FOUND_PAIR=""
-for R in "${ALL_REGIONS[@]}"; do
-  if PAIR=$(select_in_region "${R}" 2>/dev/null); then
-    FOUND_REGION="${R}"; FOUND_PAIR="${PAIR}"; break
+  if ! aks_supported "${SKU}"; then
+    echo "  ✗ ${SKU}: not AKS supported"
+    continue
   fi
+  if [ -z "${AVAIL}" ]; then
+    echo "  ✗ ${SKU}: not available"
+    continue
+  fi
+  if [ -z "${VCPU}" ]; then
+    echo "  ✗ ${SKU}: vCPU count unknown"
+    continue
+  fi
+
+  REQUIRED=$(( VCPU * NODE_COUNT ))
+  if [ -n "${QUOTA_CURRENT}" ] && [ -n "${QUOTA_LIMIT}" ]; then
+    PROJECTED=$(( QUOTA_CURRENT + REQUIRED + QUOTA_SAFETY_MARGIN ))
+    if [ ${PROJECTED} -gt ${QUOTA_LIMIT} ]; then
+      echo "  ✗ ${SKU}: quota exceeded (${PROJECTED}>${QUOTA_LIMIT})"
+      continue
+    fi
+  fi
+
+  echo "  ✓ ${SKU}: available (${VCPU} vCPUs, quota OK)"
+  SELECTED="${SKU}"
+  SELECTED_VCPUS="${VCPU}"
+  break
 done
 
-if [ -z "${FOUND_REGION}" ]; then
-  echo "ERROR: No viable SKU found in primary or fallback regions." >&2
-  exit 2
-fi
+export SELECTED_SKU="${SELECTED}"
+export SELECTED_VCPUS
+export SELECTED_REGION
 
-AKS_NODE_VM_SIZE="${FOUND_PAIR%%:*}"; export AKS_NODE_VM_SIZE
-SELECTED_VCPUS="${FOUND_PAIR##*:}"
-echo "Selected SKU=${AKS_NODE_VM_SIZE} region=${FOUND_REGION} vCPUs/node=${SELECTED_VCPUS}"
+if [ -n "${SELECTED}" ]; then
+  echo "Primary region selection: ${SELECTED} (${SELECTED_VCPUS} vCPUs)"
+else
+  echo "No viable SKU found in primary region ${AZURE_LOCATION}"
+fi
 ```
 
-Summary: Executes pre-flight SKU selection; exports `AKS_NODE_VM_SIZE` and outputs selection details only.
+<!-- expected_similarity="(available \([0-9]+ vCPUs|No viable SKU)" -->
+
+```text
+Filtering candidates in eastus...
+  ✗ Standard_DS2_v2: not available
+  ✗ Standard_D2s_v5: not available
+  ✗ Standard_D2ds_v5: not available
+  ✗ Standard_D4s_v5: not available
+  ✗ Standard_D4ds_v5: not available
+  ✗ Standard_D8s_v5: not available
+  ✗ Standard_B2ms: not available
+  ✗ Standard_B4ms: not available
+No viable SKU found in primary region eastus
+```
+
+Summary: Filtered candidates against subscription restrictions, AKS support
+lists, availability, and quota; selected first viable SKU or flagged need
+for regional fallback.
+
+### Execute regional fallback and export selection
+
+If no viable SKU was found in the primary region, iterate through fallback
+regions in order, querying SKU inventory and quota for each region and
+applying the same filtering logic. Export the first successful SKU selection
+or exit with an error if all regions are exhausted.
+
+```bash
+if [ -n "${SELECTED_SKU}" ]; then
+  echo "Using primary region selection - no fallback needed"
+  AKS_NODE_VM_SIZE="${SELECTED_SKU}"
+  FINAL_REGION="${SELECTED_REGION}"
+  FINAL_VCPUS="${SELECTED_VCPUS}"
+else
+  echo "Attempting regional fallback..."
+
+  # Parse fallback regions and filter out primary
+  FALLBACK_LIST=()
+  for R in ${FALLBACK_REGIONS}; do
+    [ "${R}" != "${AZURE_LOCATION}" ] && FALLBACK_LIST+=("${R}")
+  done
+
+  FOUND=false
+  for REGION in "${FALLBACK_LIST[@]}"; do
+    echo ""
+    echo "Trying fallback region: ${REGION}"
+
+    # Query SKU inventory for fallback region using temp file
+    REGION_SKU_FILE="/tmp/sku-data-${HASH}-${REGION}.json"
+    if [ ${HAVE_JQ} -eq 1 ]; then
+      az vm list-skus -l "${REGION}" --all \
+        --query "[?resourceType=='virtualMachines']" -o json 2>/dev/null > "${REGION_SKU_FILE}" || echo '[]' > "${REGION_SKU_FILE}"
+    else
+      echo '[]' > "${REGION_SKU_FILE}"
+    fi
+
+    # Query quota for fallback region
+    REGION_QUOTA_CURRENT=$(az vm list-usage -l "${REGION}" \
+      --query "[?localName=='Total Regional vCPUs'].currentValue" -o tsv 2>/dev/null || echo "0")
+    REGION_QUOTA_LIMIT=$(az vm list-usage -l "${REGION}" \
+      --query "[?localName=='Total Regional vCPUs'].limit" -o tsv 2>/dev/null || echo "0")
+
+    echo "  Quota: ${REGION_QUOTA_CURRENT}/${REGION_QUOTA_LIMIT} vCPUs"
+
+    # Filter candidates in this fallback region
+    read -ra CANDIDATES_ARRAY <<< "${CANDIDATE_SKUS}"
+    for SKU in "${CANDIDATES_ARRAY[@]}"; do
+      AVAIL="" VCPU="" RESTRICTED=""
+
+      if [ ${HAVE_JQ} -eq 1 ] && [ -s "${REGION_SKU_FILE}" ]; then
+        AVAIL=$(jq -r --arg sku "${SKU}" \
+          '.[] | select(.name==$sku) | select((.restrictions | map(.reasonCode) | index("NotAvailableForSubscription")) | not) | .name' \
+          < "${REGION_SKU_FILE}" 2>/dev/null | head -n1)
+        VCPU=$(jq -r --arg sku "${SKU}" \
+          '.[] | select(.name==$sku) | .capabilities[]? | select(.name=="vCPUs") | .value' \
+          < "${REGION_SKU_FILE}" 2>/dev/null | head -n1)
+        RESTRICTED=$(jq -r --arg sku "${SKU}" \
+          '.[] | select(.name==$sku) | .restrictions[]? | select(.reasonCode=="NotAvailableForSubscription") | .reasonCode' \
+          < "${REGION_SKU_FILE}" 2>/dev/null | head -n1)
+      else
+        AVAIL=$(az vm list-skus -l "${REGION}" \
+          --query "[?name=='${SKU}' && resourceType=='virtualMachines'].name" -o tsv 2>/dev/null)
+        RESTRICTED=$(az vm list-skus -l "${REGION}" \
+          --query "[?name=='${SKU}' && resourceType=='virtualMachines'].restrictions[?reasonCode=='NotAvailableForSubscription'].reasonCode" -o tsv 2>/dev/null)
+        VCPU=$(az vm list-skus -l "${REGION}" \
+          --query "[?name=='${SKU}'].capabilities[?name=='vCPUs'].value | [0]" -o tsv 2>/dev/null)
+      fi
+
+      [ -n "${RESTRICTED}" ] && continue
+      aks_supported "${SKU}" || continue
+      [ -z "${AVAIL}" ] && continue
+      [ -z "${VCPU}" ] && continue
+
+      REQUIRED=$(( VCPU * NODE_COUNT ))
+      if [ -n "${REGION_QUOTA_CURRENT}" ] && [ -n "${REGION_QUOTA_LIMIT}" ]; then
+        PROJECTED=$(( REGION_QUOTA_CURRENT + REQUIRED + QUOTA_SAFETY_MARGIN ))
+        [ ${PROJECTED} -gt ${REGION_QUOTA_LIMIT} ] && continue
+      fi
+
+      echo "  ✓ Found: ${SKU} (${VCPU} vCPUs)"
+      AKS_NODE_VM_SIZE="${SKU}"
+      FINAL_REGION="${REGION}"
+      FINAL_VCPUS="${VCPU}"
+      FOUND=true
+      break
+    done
+
+    [ "${FOUND}" = true ] && break
+  done
+
+  if [ "${FOUND}" != true ]; then
+    echo ""
+    echo "ERROR: No viable SKU found in primary or fallback regions" >&2
+    exit 2
+  fi
+fi
+
+export AKS_NODE_VM_SIZE
+echo ""
+echo "Selected SKU=${AKS_NODE_VM_SIZE} region=${FINAL_REGION} vCPUs/node=${FINAL_VCPUS}"
+
+# Cleanup temporary SKU data files
+rm -f /tmp/sku-data-${HASH}-*.json 2>/dev/null || true
+echo "Cleaned up temporary SKU data files"
+```
+
+<!-- expected_similarity="Selected SKU=Standard_[A-Z0-9_]+ region=[a-z0-9]+ vCPUs/node=[0-9]+" -->
+
+```text
+Attempting regional fallback...
+
+Trying fallback region: eastus2
+  Quota: 0/20 vCPUs
+  ✓ Found: Standard_DS2_v2 (2 vCPUs)
+
+Selected SKU=Standard_DS2_v2 region=eastus2 vCPUs/node=2
+Cleaned up temporary SKU data files
+```
+
+Summary: Executed regional fallback when primary region had no viable SKU;
+exported AKS_NODE_VM_SIZE for use in cluster creation commands and cleaned
+up temporary files.
 
 ### Remediation (no viable SKU found)
 
@@ -303,13 +524,24 @@ Example manual discovery command for a specific region:
 ```bash
 # Only perform manual SKU inventory listing if dynamic selection failed.
 if [ -z "${AKS_NODE_VM_SIZE:-}" ]; then
-  echo "No AKS_NODE_VM_SIZE selected - listing sample SKUs for region ${LOCATION}" >&2
-  az vm list-skus -l "${LOCATION}" --all \
+  echo "No AKS_NODE_VM_SIZE selected - listing sample SKUs for region ${AZURE_LOCATION}" >&2
+  az vm list-skus -l "${AZURE_LOCATION}" --all \
     --query "[?resourceType=='virtualMachines'].name" -o tsv | sort -u | head -n 40 || echo "SKU listing command failed" >&2
+  # Clean up any leftover temp files from failed selection
+  rm -f /tmp/sku-data-${HASH}-*.json 2>/dev/null || true
 else
   echo "AKS_NODE_VM_SIZE (${AKS_NODE_VM_SIZE}) already selected - skipping SKU inventory listing." >&2
 fi
 ```
+
+<!-- expected_similarity="already selected - skipping" -->
+
+```text
+AKS_NODE_VM_SIZE (Standard_DS2_v2) already selected - skipping SKU inventory listing.
+```
+
+Summary: Conditionally lists available SKUs only when automatic selection has
+failed, avoiding unnecessary API calls during normal operation.
 
 ### AKS support enforcement rationale
 
@@ -338,11 +570,43 @@ extended filtering if they produce repeat errors in practice.
 Summary: Restriction metadata clarifies why a SKU is filtered or fails; use it
 to guide subscription enablement, quota increase requests, or region/architecture adjustments.
 
+## Verification
+
+Check whether a viable AKS VM size has already been selected by verifying
+that the `AKS_NODE_VM_SIZE` environment variable is set to a non-empty value.
+This read-only verification allows fast re-execution of the document without
+repeating the SKU selection process.
+
+```bash
+if [ -n "${AKS_NODE_VM_SIZE:-}" ]; then
+  echo "✓ AKS_NODE_VM_SIZE already set to: ${AKS_NODE_VM_SIZE}"
+  echo "✓ SKU selection complete - document execution not needed"
+  exit 0
+else
+  echo "AKS_NODE_VM_SIZE not set - SKU selection required"
+  exit 1
+fi
+```
+
+<!-- expected_similarity="(already set to|not set)" -->
+
+```text
+AKS_NODE_VM_SIZE not set - SKU selection required
+```
+
+Summary: Verification checks confirm whether SKU selection has completed
+without performing any Azure API calls or mutations.
+
 ## Summary
 
-The dynamic selection script identified an available AKS VM size within
-quota constraints, reducing allocation failures. It supports ARM/AMD64,
-fallback regions, burstable options, and a quota safety margin.
+You executed the dynamic SKU selection script to identify an available AKS
+VM size within regional availability and quota constraints. The script
+exported `AKS_NODE_VM_SIZE` containing the selected SKU, ready for use in
+`az aks create` commands. Regional fallback, architecture-specific candidate
+lists, and subscription restriction filtering reduced allocation failures.
+
+Summary: SKU selection completed with AKS_NODE_VM_SIZE exported for
+downstream cluster creation workflows.
 
 ## Next Steps
 

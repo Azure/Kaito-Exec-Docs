@@ -36,15 +36,12 @@ command -v git >/dev/null || echo "Git missing"
 command -v jq >/dev/null || echo "jq missing (optional)"
 ```
 
-Run the executable guide to [Creating an AKS Cluster](../Create_AKS.md) to
-validate Azure access, provision the resource group, attach Azure Container
-Registry when needed, and export the environment variables this document
-expects. Return here once that workflow completes successfully.
-
-Summary: Confirms the Azure CLI, kubectl, Helm, and supporting tools are ready
-to manage the deployment.
-
-## Setting up the environment
+The Azure credential environment variables (`AZURE_TENANT_ID`, `AZURE_CLIENT_ID`,
+`AZURE_CLIENT_SECRET`, `AZURE_SUBSCRIPTION_ID`) must be set to valid service
+principal credentials that have at minimum Reader access to the target AKS
+cluster and resource group. Without these values the AKS-MCP container will not
+be able to authenticate to Azure CLI and all MCP tool calls will fail with
+authentication errors.
 
 Export the variables that control resource names, image selection, access
 levels, and validation helpers. Azure specific values (tenant, client, secret,
@@ -56,7 +53,7 @@ suffix to prevent collisions.
 export HASH="${HASH:-$(
   date -u +"%y%m%d%H%M"
 )}"
-export RESOURCE_GROUP="${RESOURCE_GROUP:-mcp-rg}"
+export AZURE_RESOURCE_GROUP="${AZURE_RESOURCE_GROUP:-mcp-rg}"
 export AKS_CLUSTER_NAME="${AKS_CLUSTER_NAME:-mcp-cluster}"
 export AKS_MCP_NAMESPACE="${AKS_MCP_NAMESPACE:-aks-mcp}"
 export AKS_MCP_RELEASE="${AKS_MCP_RELEASE:-aks-mcp-${HASH}}"
@@ -86,12 +83,17 @@ port-forward.log}"
 export AKS_MCP_PROTOCOL_VERSION="${AKS_MCP_PROTOCOL_VERSION:-2024-10-22}"
 export AKS_MCP_CLIENT_NAME="${AKS_MCP_CLIENT_NAME:-exec-doc}"
 export AKS_MCP_CLIENT_VERSION="${AKS_MCP_CLIENT_VERSION:-0.0.1}"
+export AKS_MCP_AZURE_CONFIG_VOLUME="${AKS_MCP_AZURE_CONFIG_VOLUME:-true}"
+export AKS_MCP_AZURE_CONFIG_PATH="${AKS_MCP_AZURE_CONFIG_PATH:-/home/mcp/.azure}"
+export AKS_MCP_EXTRA_VALUES_FILE="${AKS_MCP_EXTRA_VALUES_FILE:-/tmp/aks-mcp-extra-values.yaml}"
 ```
+
+For reference we can dump the current values of these environment variables to the console.
 
 ```bash
 VARS=(
   HASH
-  RESOURCE_GROUP
+  AZURE_RESOURCE_GROUP
   AKS_CLUSTER_NAME
   AKS_MCP_NAMESPACE
   AKS_MCP_RELEASE
@@ -117,6 +119,9 @@ VARS=(
   AKS_MCP_PROTOCOL_VERSION
   AKS_MCP_CLIENT_NAME
   AKS_MCP_CLIENT_VERSION
+  AKS_MCP_AZURE_CONFIG_VOLUME
+  AKS_MCP_AZURE_CONFIG_PATH
+  AKS_MCP_EXTRA_VALUES_FILE
 )
 
 for var in "${VARS[@]}"; do
@@ -124,8 +129,27 @@ for var in "${VARS[@]}"; do
 done
 ```
 
-Summary: Establishes reproducible defaults and prints the resulting
-configuration for quick review before provisioning.
+The Azure credential environment variables (`AZURE_TENANT_ID`, `AZURE_CLIENT_ID`,
+`AZURE_CLIENT_SECRET`, `AZURE_SUBSCRIPTION_ID`) must be set to valid service
+principal credentials that have at minimum Reader access to the target AKS
+cluster and resource group. Without these values the AKS-MCP container will not
+be able to authenticate to Azure CLI and all MCP tool calls will fail with
+authentication errors.
+
+Run the executable guide to [Create Azure Service Principal](Create_Azure_Service_Principal.md)
+to create a service principal with appropriate permissions and export the
+required credential environment variables. Source the generated credential file
+before continuing.
+
+Run the executable guide to [Creating an AKS Cluster](../Create_AKS.md) to
+validate Azure access, provision the resource group, attach Azure Container
+Registry when needed, and export the environment variables this document
+expects. Return here once that workflow completes successfully.
+
+Summary: Confirms the Azure CLI, kubectl, Helm, and supporting tools are ready
+to manage the deployment. Establishes reproducible defaults and prints the resulting
+configuration for quick review before provisioning. Ensure that there is an active AKS
+cluster and Azure service principal credentials are exported.
 
 ## Steps
 
@@ -133,14 +157,14 @@ Follow each step to install, validate, and exercise the AKS-MCP server on
 your cluster. Commands stop on failure (`set -e`) is not implied, so review
 each outcome before continuing.
 
-### Step 1. Confirm Azure access and AKS context
+### Confirm Azure access and AKS context
 
 Verify the Azure subscription, ensure the AKS credentials are current, and
 confirm cluster reachability.
 
 ```bash
 az account show --output table
-az aks show --resource-group "${RESOURCE_GROUP}" \
+az aks show --resource-group "${AZURE_RESOURCE_GROUP}" \
   --name "${AKS_CLUSTER_NAME}" \
   --output table
 kubectl get nodes
@@ -148,7 +172,7 @@ kubectl get nodes
 
 Summary: Azure CLI and kubectl can reach the intended subscription and cluster.
 
-### Step 2. Clone or update the AKS-MCP repository
+### Clone or update the AKS-MCP repository
 
 Fetch the Helm chart and source templates from the official repository.
 
@@ -164,7 +188,7 @@ git -C "${AKS_MCP_REPO_DIR}" log -1 --oneline
 
 Summary: Local sources are synchronized with the latest AKS-MCP content.
 
-### Step 3. Prepare the Azure credential secret
+### Prepare the Azure credential secret
 
 Create or update the secret that the Helm chart references for Azure CLI
 authentication. Skip the secret when using managed identity by leaving the
@@ -191,7 +215,7 @@ kubectl get secret "${AKS_MCP_SECRET_NAME}" \
 
 Summary: Namespace exists and Azure credentials are stored when required.
 
-### Step 4. Install or upgrade the Helm release
+### Install or upgrade the Helm release
 
 Deploy the AKS-MCP server using Helm. Optional flags inject additional tools,
 namespace filters, or telemetry only when values are provided.
@@ -218,6 +242,20 @@ if [ -n "${AKS_MCP_TELEMETRY_ENDPOINT}" ]; then
     "telemetry.otlpEndpoint=${AKS_MCP_TELEMETRY_ENDPOINT}"
   )
 fi
+if [ "${AKS_MCP_AZURE_CONFIG_VOLUME}" = "true" ]; then
+  cat > "${AKS_MCP_EXTRA_VALUES_FILE}" <<EOF
+extraVolumes:
+  - name: azure-config
+    emptyDir: {}
+extraVolumeMounts:
+  - name: azure-config
+    mountPath: "${AKS_MCP_AZURE_CONFIG_PATH}"
+EOF
+  OPTIONAL_ARGS+=(
+    "-f"
+    "${AKS_MCP_EXTRA_VALUES_FILE}"
+  )
+fi
 helm upgrade --install "${AKS_MCP_RELEASE}" "." \
   --namespace "${AKS_MCP_NAMESPACE}" \
   --create-namespace \
@@ -232,36 +270,34 @@ cd -
 ```
 
 Summary: Helm applies the AKS-MCP chart with your chosen image, transport, and
-access policy.
+access policy, layering in a writable Azure CLI config volume through a
+temporary values file when that option is enabled.
 
-### Step 5. Wait for the deployment to become ready
+### Wait for the deployment to become ready
 
 Check rollout status and inspect the service endpoint provisioned by the
 chart.
 
 ```bash
-RELEASE_NAME="${AKS_MCP_RELEASE}"
-APP_NAME="${RELEASE_NAME}"
-kubectl rollout status deployment/"${APP_NAME}" \
+kubectl rollout status deployment/"${AKS_MCP_RELEASE}" \
   --namespace "${AKS_MCP_NAMESPACE}"
 kubectl get pods,svc \
   --namespace "${AKS_MCP_NAMESPACE}" \
-  --selector app.kubernetes.io/instance="${RELEASE_NAME}"
+  --selector app.kubernetes.io/instance="${AKS_MCP_RELEASE}"
 ```
 
 Summary: Deployment reports `Successfully rolled out` and service resources are
 visible.
 
-### Step 6. Port-forward the MCP endpoint for validation
+### Port-forward the MCP endpoint for validation
 
 Forward the service to localhost, probe the health check, and keep the PID for
 cleanup.
 
 ```bash
-APP_NAME="${AKS_MCP_RELEASE}"
 kubectl port-forward \
   --namespace "${AKS_MCP_NAMESPACE}" \
-  svc/"${APP_NAME}" \
+  svc/"${AKS_MCP_RELEASE}" \
   "${AKS_MCP_LOCAL_PORT}:${AKS_MCP_PORT}" \
   >"${AKS_MCP_PORT_FORWARD_LOG}" 2>&1 &
 export AKS_MCP_PORT_FORWARD_PID=$!
@@ -275,14 +311,14 @@ for attempt in $(seq 1 30); do
   sleep 2
 done
 if [ "${PORT_FORWARD_READY}" != "true" ]; then
-  echo "Failed to verify port-forward to service ${APP_NAME}. Check ${AKS_MCP_PORT_FORWARD_LOG}." >&2
+  echo "Failed to verify port-forward to service ${AKS_MCP_RELEASE}. Check ${AKS_MCP_PORT_FORWARD_LOG}." >&2
   exit 1
 fi
 ```
 
 Summary: The MCP endpoint is reachable locally through the port-forward.
 
-### Step 7. Initialize an MCP session over HTTP
+### Initialize an MCP session over HTTP
 
 Send the MCP `initialize` request using the latest protocol schema. The
 response includes the `Mcp-Session-Id` header that future calls must supply.
@@ -327,6 +363,43 @@ rm -f "${AKS_MCP_INIT_FILE}" "${INIT_HEADERS}"
 Summary: The MCP server returned a session identifier through the
 `Mcp-Session-Id` header, confirming the endpoint is ready for additional
 requests.
+
+### Call the cluster details tool via MCP session
+
+Use the established MCP session to invoke the AKS cluster management tool with
+the read-only `show` operation and return the cluster description.
+
+```bash
+AKS_MCP_SHOW_REQUEST=$(cat <<EOF
+{
+  "jsonrpc": "2.0",
+  "id": "show-cluster",
+  "method": "tools/call",
+  "params": {
+    "name": "az_aks_operations",
+    "arguments": {
+      "operation": "show",
+      "args": "--name ${AKS_CLUSTER_NAME} --resource-group ${AZURE_RESOURCE_GROUP}"
+    }
+  }
+}
+EOF
+)
+
+curl -sS \
+  -H 'Content-Type: application/json' \
+  -H 'Accept: application/json, text/event-stream' \
+  -H "mcp-session-id: ${MCP_SESSION_ID}" \
+  -d "${AKS_MCP_SHOW_REQUEST}" \
+  "http://localhost:${AKS_MCP_LOCAL_PORT}/mcp" |
+  sed -e 's/^data: //' -e '/^$/d' |
+  jq -r 'try(.result.content[0].text // "") // empty' |
+  sed 's/\\n/\n/g' |
+  head -n 80
+```
+
+Summary: Verified the MCP session and retrieved AKS cluster details through
+the `az_aks_operations` tool.
 
 ## Summary
 

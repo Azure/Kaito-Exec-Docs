@@ -21,6 +21,10 @@ Purpose: Provide immediately actionable knowledge for coding agents in this repo
 
 - One tool per file; filename becomes logical handle. Keep side effects minimal at import time (only decorator registration).
 - Exec Docs (`docs/*.md`): structure as Introduction, Prerequisites, Setting up the environment, Steps, Summary, Next Steps. All command parameters passed via ALL_CAPS env vars; include `HASH=$(date -u +"%y%m%d%H%M")` for uniqueness.
+- When an Exec Doc depends on other executable documents, define and export
+  all environment variables in the "Setting up the environment" section
+  before invoking or referencing those prerequisites so that a single,
+  consistent environment is available to all linked documents.
 - HTTP initialize example (correct schema): `{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"client":{"name":"demo","version":"0.0.1"},"protocol":{"version":"2024-10-22"},"capabilities":{}}}`.
 - Keep lines <=80 chars, use spaces for indentation, avoid em dashes (use hyphen).
 - Prefer fast failure: if a tool cannot import or register, exit with non-zero (do not silently ignore).
@@ -47,6 +51,11 @@ Purpose: Provide immediately actionable knowledge for coding agents in this repo
 
 - Kubernetes deployment uses KMCP controller via Exec Docs; treat those markdown files as runnable specs (do not hard-code values; rely on env vars).
 - When updating deployment steps, keep variable-driven approach (no inline literal cluster names).
+- When the user asks to "execute" an Exec Doc, assume it should be run
+  via the innovation engine CLI and respond with the appropriate
+  `ie execute <relative/path/to/doc.md>` command from the repo root,
+  rather than attempting to re-interpret or manually replay individual
+  code blocks.
 
 ### References
 
