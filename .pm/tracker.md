@@ -1,8 +1,8 @@
 # MCPaaS Project Tracker
 
-**Last Updated:** 2025-12-01  
+**Last Updated:** 2025-12-02  
 **Project Phase:** Early Stage Development  
-**Overall Status:** Active Development - Multiple workstreams in progress
+**Overall Status:** Active Development - Foundation work progressing well
 
 ---
 
@@ -12,17 +12,17 @@ MCPaaS is building a comprehensive platform for developing, managing, and deploy
 
 ### Current Sprint Focus
 
-- Completing Open-WebSearch AKS deployment with monitoring
-- Stabilizing Innovation Engine MCP remote testing
-- Validating executable documentation patterns
-- Establishing project governance structures
-- Planning demonstration and integration tasks (KAITO, chat app, videos)
+- Open-WebSearch AKS deployment completed and promoted to main docs
+- ACR deployment documentation completed and stress-tested
+- Multiple KAITO exec docs created (Install, Workspace, RAG, diagnostics)
+- Next: Begin demonstration videos and chat app integration
+- Next: Resolve IE MCP remote deployment issues
 
 ### Key Risks
 
 1. **Scope Ambiguity** - PRD describes full managed platform but current development is experimental/validation phase
-2. **Deployment Test Failures** - IE MCP and Web Search deployments working locally but failing remote validation
-3. **Documentation Drift** - Multiple incomplete exec docs without clear maintenance ownership
+2. **IE MCP Deployment Failures** - IE MCP working locally but failing remote K8s validation (needs investigation)
+3. **Documentation Volume** - Rapid exec doc creation needs testing/validation cadence to prevent drift
 
 ---
 
@@ -34,6 +34,8 @@ MCPaaS is building a comprehensive platform for developing, managing, and deploy
 | 1.1.2 | Innovation Engine MCP Server         | blocked     | High     | None                | Platform Engineering | 2025-12-01 |
 | 1.1.3 | Open-WebSearch on Local K8s          | in-progress | High     | None                | Platform Engineering | 2025-12-01 |
 | 1.1.4 | Open-WebSearch on AKS                | completed   | High     | 1.1.3, 1.1.1        | Platform Engineering | 2025-12-02 |
+| 1.1.5 | ACR Deployment Documentation         | completed   | High     | None                | Platform Engineering | 2025-12-02 |
+| 1.1.6 | KAITO Installation Exec Docs         | completed   | High     | None                | Platform Engineering | 2025-12-02 |
 | 1.2.1 | KAITO Deployment Video               | not-started | High     | 2.1.2               | Developer Relations  | 2025-12-01 |
 | 1.2.2 | OpenWebSearch AKS Deployment Video   | not-started | High     | 1.1.4               | Developer Relations  | 2025-12-01 |
 | 1.2.3 | Integrated Chat App with MCP & KAITO | not-started | High     | 1.2.1, 1.1.4        | Platform Engineering | 2025-12-01 |
@@ -199,6 +201,66 @@ MCPaaS is building a comprehensive platform for developing, managing, and deploy
 - **Next Steps:**
   1. Use this AKS deployment pattern as the reference for OpenWebSearch in downstream docs and demos (1.2.2, 1.2.3, 1.2.4)
   2. Tackle Phase 2.2 hardening tasks (ingress/TLS, monitoring, alerting, autoscaling) as follow-on work
+- **Last Updated:** 2025-12-02
+
+---
+
+### 1.1.5 — ACR Deployment Documentation
+
+- **Description:** Create comprehensive executable documentation for deploying Azure Container Registry (ACR) with proper configuration for AKS integration. This establishes the standard pattern for container registry setup used across all MCP server deployments.
+- **Acceptance Criteria:**
+  - Exec doc `docs/Deploy_ACR_for_AKS.md` exists with standard structure
+  - All environment variables documented with HASH-based uniqueness
+  - ACR creation, configuration, and AKS integration steps documented
+  - Role assignments and permissions configured correctly
+  - Validation steps confirm push/pull functionality
+  - Cleanup instructions included
+  - Referenced from other deployment docs (OpenWebSearch, IE MCP)
+- **Priority:** High
+- **Responsible:** Platform Engineering
+- **Dependencies:** None
+- **Progress:**
+  - ✅ Documentation created and validated
+  - ✅ Stress tested and promoted from incubation to main docs
+  - ✅ Integrated into other deployment workflows
+- **Status:** Completed
+- **Last Updated:** 2025-12-02
+
+---
+
+### 1.1.6 — KAITO Installation and Workspace Exec Docs
+
+- **Description:** Create comprehensive executable documentation suite for KAITO (Kubernetes AI Toolchain Operator) covering installation, workspace deployment, diagnostics, and advanced use cases like RAG and multiple model workspaces.
+- **Acceptance Criteria:**
+  - Install_Kaito_On_AKS.md: Complete KAITO installation with GPU node pools
+  - Deploy_Kaito_Workspace.md: Single model workspace deployment pattern
+  - Deploy_Additional_Model_Workspaces_on_Kaito.md: Multi-model scenarios
+  - Deploy_RAG_On_Kaito_AKS.md: RAG architecture with KAITO
+  - Configure_Diagnostics_for_Kaito.md: Monitoring and troubleshooting
+  - All docs follow standard exec doc template
+  - Cross-references established between related docs
+  - Validation successful in target environment
+- **Priority:** High
+- **Responsible:** Platform Engineering
+- **Dependencies:** None (builds on existing AKS cluster patterns)
+- **Progress:**
+  - ✅ Install_Kaito_On_AKS.md created (631 lines)
+  - ✅ Deploy_Kaito_Workspace.md created (307 lines)
+  - ✅ Deploy_Additional_Model_Workspaces_on_Kaito.md created (113 lines)
+  - ✅ Deploy_RAG_On_Kaito_AKS.md created (345 lines)
+  - ✅ Configure_Diagnostics_for_Kaito.md created (112 lines)
+  - ✅ All docs in incubation directory for validation
+  - ⏳ End-to-end execution validation pending (task 1.2.1 dependency)
+- **Risks & Mitigations:**
+  - Risk: GPU quota limitations in test environments. Mitigation: Pre-flight checks documented, multiple region options.
+  - Risk: KAITO version changes may break docs. Mitigation: Version pinning in docs, changelog tracking.
+- **Next Steps:**
+  1. Execute Install_Kaito_On_AKS.md in clean environment
+  2. Validate all KAITO workspace deployment patterns
+  3. Test RAG deployment end-to-end
+  4. Promote validated docs from incubation to main docs directory
+  5. Create KAITO deployment video (task 1.2.1)
+- **Status:** Completed (pending validation before promotion)
 - **Last Updated:** 2025-12-02
 
 ---
@@ -671,6 +733,16 @@ MCPaaS is building a comprehensive platform for developing, managing, and deploy
 - ✅ Open-WebSearch local deployment and basic functionality validated
 - ✅ Open-WebSearch AKS deployment with search working
 
+### Sprint Current (2025-12-02)
+
+- ✅ Open-WebSearch AKS documentation stress-tested and promoted
+- ✅ ACR deployment documentation created and validated
+- ✅ Comprehensive KAITO documentation suite created (5 exec docs)
+- ✅ Agent definitions linted and updated for consistency
+- ✅ Multiple exec docs promoted from incubation
+- ⏳ KAITO docs awaiting end-to-end validation
+- ⏳ IE MCP remote deployment still blocked
+
 ---
 
 ## Upcoming Milestones
@@ -722,3 +794,4 @@ MCPaaS is building a comprehensive platform for developing, managing, and deploy
   - 1.2.3: Integrated Chat App with MCP & KAITO (High priority)
   - 1.2.4: End-to-End Solution Demo Video (Medium priority)
 - 2025-12-01: Dependency tracking review - Added Dependencies column to summary table and standardized dependency notation across all tasks (task IDs vs prerequisites)
+- 2025-12-02: Major documentation milestone - Added tasks 1.1.5 (ACR) and 1.1.6 (KAITO suite) as completed. Open-WebSearch AKS promoted to main docs. 5 new KAITO exec docs created covering installation, workspace deployment, RAG, diagnostics, and multi-model scenarios. Updated sprint focus and risks based on recent progress.
