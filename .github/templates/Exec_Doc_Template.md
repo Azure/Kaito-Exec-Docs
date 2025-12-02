@@ -27,6 +27,8 @@ The following commands validate these dependencies and install or update
 them where appropriate. Replace these with the actual tools for your
 scenario.
 
+Validate that the Example CLI is installed and meets the minimum version.
+
 ```bash
 MIN_EXAMPLE_VERSION="1.0.0"
 
@@ -41,23 +43,59 @@ if ! command -v example >/dev/null; then
   # curl -sL https://example.com/install.sh | bash
 else
   echo "Checking Example CLI version..."
-  example_version=$(example --version 2>/dev/null | awk 'NR==1 {print $NF}')
+  example_version=$(example --version 2>/dev/null | head -n1 | sed -e 's/.* //')
   echo "Found example ${example_version}"
   if ! version_ge "${example_version}" "${MIN_EXAMPLE_VERSION}"; then
     echo "Example CLI version is below ${MIN_EXAMPLE_VERSION}, upgrading..."
     # TODO: Add upgrade command for your CLI
   fi
 fi
-
-command -v kubectl >/dev/null || echo "kubectl missing (optional)"
-command -v jq >/dev/null || echo "jq missing (optional)"
 ```
+
+This block ensures the primary CLI exists and is updated as needed.
 
 <!-- expected_similarity="Found example.*" -->
 
 ```text
 Checking Example CLI version...
 Found example 1.2.3
+```
+
+Confirm that `kubectl` is available for Kubernetes operations.
+
+```bash
+if command -v kubectl >/dev/null; then
+  kubectl version --client --short
+else
+  echo "kubectl missing (optional)"
+fi
+```
+
+This check reports the kubectl client version or reminds you to install it.
+
+<!-- expected_similarity="Client Version: v.*" -->
+
+```text
+Client Version: v1.30.1
+Kustomize Version: v5.3.0
+```
+
+Verify that `jq` is present when JSON parsing is required.
+
+```bash
+if command -v jq >/dev/null; then
+  jq --version
+else
+  echo "jq missing (optional)"
+fi
+```
+
+This optional dependency is useful for processing structured outputs.
+
+<!-- expected_similarity="jq-.*" -->
+
+```text
+jq-1.7.1
 ```
 
 ### Deployment Configuration
@@ -250,52 +288,10 @@ exit 0
 PASS: Example workflow resources are present and correctly configured
 ```
 
-### Environment Variables
-
-For convenience, dump key environment variables to the console for
-inspection. Extend this list as needed, following the ALL_CAPS naming
-convention.
-
-```bash
-VARS=(
-  HASH
-  AZURE_
-  APP_
-)
-
-for prefix in "${VARS[@]}"; do
-  echo "=== Variables starting with ${prefix} ==="
-  while IFS= read -r var_name; do
-    if [[ "${var_name}" == "${prefix}"* ]]; then
-      printf "  %s=%s\n" "${var_name}" "${!var_name}"
-    fi
-  done < <(compgen -v | sort)
-  echo
-done
-```
-
-<!-- expected_similarity="=== Variables starting with HASH ===" -->
-
-```text
-=== Variables starting with HASH ===
-HASH=2511132113
-
-=== Variables starting with AZURE_ ===
-AZURE_SUBSCRIPTION_ID=00000000-0000-0000-0000-000000000000
-AZURE_LOCATION=eastus2
-AZURE_RESOURCE_GROUP=example-rg_2511132113
-
-=== Variables starting with APP_ ===
-APP_NAMESPACE=example-namespace
-APP_NAME=example-app
-APP_CONFIG_VALUE=default-config
-```
-
 Summary:
 
 - Verification checks confirm that the example workflow resources
   are deployed and correctly configured.
-- Dump config environment variables to the console ouput
 
 ## Summary
 

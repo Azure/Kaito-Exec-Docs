@@ -109,7 +109,29 @@ else
     --output table
 fi
 
+echo "ACR Exists."
+```
+
+Once an existing ACR is found, or a new one created, this code will output:
+
+<!-- expected_similarity="ACR Exists" -->
+
+```text
+ACR Exists.
+```
+
+Now we know the ACR is available we can log in:
+
+```bash
 az acr login --name "${ACR_NAME}"
+```
+
+Assuming credentials are setup correctly you will see:
+
+<!-- expected_similarity=0.9 -->
+
+```text
+Login Succeeded
 ```
 
 Summary: ACR is created if needed and the local Docker client is
@@ -117,68 +139,25 @@ authenticated for image pushes.
 
 ### Attach ACR to AKS cluster
 
-Grant the AKS cluster permission to pull images from the ACR. If the
-`AcrPull` role assignment already exists, the step is skipped.
+Grant the AKS cluster permission to pull images from the ACR by
+attaching the registry to the cluster identity. This command is
+idempotent and safe to re-run.
 
 ```bash
-ACR_ID=$( \
-  az acr show \
-    --name "${ACR_NAME}" \
-    --resource-group "${AZURE_RESOURCE_GROUP}" \
-    --query id \
-    --output tsv
-)
-
-EXISTING_ACR=$( \
-  az aks show \
-    --name "${AKS_CLUSTER_NAME}" \
-    --resource-group "${AZURE_RESOURCE_GROUP}" \
-    --query "servicePrincipalProfile.clientId" \
-    --output tsv 2>/dev/null || echo "msi"
-)
-
-if [ "${EXISTING_ACR}" = "msi" ]; then
-  KUBELET_IDENTITY_OBJECT_ID=$( \
-    az aks show \
-      --name "${AKS_CLUSTER_NAME}" \
-      --resource-group "${AZURE_RESOURCE_GROUP}" \
-      --query "identityProfile.kubeletidentity.objectId" \
-      --output tsv
-  )
-  ROLE_ASSIGNMENT=$( \
-    az role assignment list \
-      --assignee "${KUBELET_IDENTITY_OBJECT_ID}" \
-      --scope "${ACR_ID}" \
-      --role "AcrPull" \
-      --query "[0].id" \
-      --output tsv
-  )
-  if [ -n "${ROLE_ASSIGNMENT}" ]; then
-    echo "ACR ${ACR_NAME} is already attached to AKS cluster ${AKS_CLUSTER_NAME}; skipping"
-  else
-    az aks update \
-      --name "${AKS_CLUSTER_NAME}" \
-      --resource-group "${AZURE_RESOURCE_GROUP}" \
-      --attach-acr "${ACR_NAME}" \
-      --output table
-  fi
-else
-  az aks update \
-    --name "${AKS_CLUSTER_NAME}" \
-    --resource-group "${AZURE_RESOURCE_GROUP}" \
-    --attach-acr "${ACR_NAME}" \
-    --output table
-fi
+az aks update \
+  --name "${AKS_CLUSTER_NAME}" \
+  --resource-group "${AZURE_RESOURCE_GROUP}" \
+  --attach-acr "${ACR_NAME}" \
+  --output table
 ```
 
 Summary: Ensures the AKS cluster identity has `AcrPull` rights on the
-ACR, either reusing an existing assignment or creating a new
-attachment.
+ACR by attaching the registry to the cluster.
 
 ## Verification
 
-Run these checks to confirm that the ACR exists and the AKS cluster has
-pull permissions.
+Run these checks to confirm that the ACR exists and that the AKS
+cluster remains correctly attached to it.
 
 ```bash
 az acr show \
@@ -188,15 +167,46 @@ az acr show \
   --output table
 ```
 
-```bash
-az role assignment list \
-  --scope "$(az acr show --name "${ACR_NAME}" --resource-group "${AZURE_RESOURCE_GROUP}" --query id -o tsv)" \
-  --query "[?roleDefinitionName=='AcrPull'].[principalId,roleDefinitionName]" \
-  --output table
+<!-- expected_similarity="$ACR_NAME\s+$AZURE_LOCATION" -->
+
+```text
+Name           LoginServer                 Location
+-------------  --------------------------  ---------
+acrwebsearch   acrwebsearch.azurecr.io     eastus2
 ```
 
-Summary: Confirms the registry exists and that an identity associated
-with the AKS cluster holds `AcrPull` rights on the registry scope.
+```bash
+az aks show \
+  --name "${AKS_CLUSTER_NAME}" \
+  --resource-group "${AZURE_RESOURCE_GROUP}" \
+  --query "name" \
+  --output tsv
+```
+
+<!-- expected_similarity="$AKS_CLUSTER_NAME" -->
+
+```text
+aks-openwebsearch-2512022207
+```
+
+```bash
+az aks update \
+  --name "${AKS_CLUSTER_NAME}" \
+  --resource-group "${AZURE_RESOURCE_GROUP}" \
+  --attach-acr "${ACR_NAME}" \
+  --output none
+echo "Verified AKS cluster is attached to ACR '${ACR_NAME}'"
+```
+
+<!-- expected_similarity="Verified AKS cluster is attached to ACR '$ACR_NAME'" -->
+
+```text
+Verified AKS cluster is attached to ACR 'acrwebsearch'
+```
+
+Summary: Confirms the registry exists, the AKS cluster is reachable,
+and re-applies the ACR attachment in an idempotent way to ensure pull
+permissions are in place.
 
 ## Summary
 

@@ -9,7 +9,7 @@ spec:
     targetPort: 3000
     path: /
   deployment:
-    image: ghcr.io/aas-ee/open-web-search:latest
+    image: acrwebsearch2512022249.azurecr.io/open-websearch-mcp:latest
     port: 3000
     env:
       ALLOWED_SEARCH_ENGINES: "bing,duckduckgo,brave,exa,baidu,csdn,juejin"

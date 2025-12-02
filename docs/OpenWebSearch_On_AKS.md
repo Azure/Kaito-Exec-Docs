@@ -21,9 +21,10 @@ deployment of the Open-WebSearch MCP server managed by KMCP.
 
 Define the environment variables used after AKS provisioning. Azure-specific
 variables (resource group, cluster name, ACR identifiers) are now managed by
-`Create_AKS.md`; this document expects them to already be exported in the
-current shell. Unique names still append the timestamp-based `HASH` to avoid
-collisions when generating new resources (for example, custom images).
+`Create_AKS.md` and `incubation/Deploy_ACR_for_AKS.md`; this document expects
+them to already be exported in the current shell. Unique names still append
+the timestamp-based `HASH` to avoid collisions when generating new resources
+(for example, custom images).
 
 ```bash
 export HASH="${HASH:-$(date -u +"%y%m%d%H%M")}"  # YYMMDDHHMM stamp
@@ -74,7 +75,8 @@ export TEST_FETCH_GITHUB_REPO="${TEST_FETCH_GITHUB_REPO:-Aas-ee/open-webSearch}"
 ```
 
 Summary: Ensures runtime variables are ready while asserting that Azure and ACR
-values have been supplied by `docs/Create_AKS.md`.
+values have been supplied by `docs/Create_AKS.md` and
+`docs/incubation/Deploy_ACR_for_AKS.md`.
 
 ## Prerequisites
 
@@ -99,65 +101,13 @@ command -v npm >/dev/null || echo "npm missing"
 command -v jq >/dev/null || echo "jq missing (optional)"
 ```
 
-Run the executable guide to [Creating an AKS Cluster](Create_AKS.md) to validate Azure access, create
-the resource group, provision Azure Container Registry, deploy the AKS cluster,
-add any optional node pools, and attach the registry to the cluster. That guide
-also exports the Azure-related environment variables this document consumes.
-Return here once it reports completion.
-
-### Verify environment variable values
-
-Inspect the effective configuration before provisioning resources to avoid
-unexpected names or regions. Re-run this block after adjustments to confirm the
-active settings.
-
-```bash
-REQUIRED_AKS_VARS=(
-  HASH
-  AZURE_RESOURCE_GROUP
-  AKS_CLUSTER_NAME
-  ACR_NAME
-  ACR_LOGIN_SERVER
-)
-
-VARS=(
-  "${REQUIRED_AKS_VARS[@]}"
-  MCP_IMAGE_FULL
-  OPENWEBSEARCH_REPO_URL
-  OPENWEBSEARCH_REPO_DIR
-  KMCP_NAMESPACE
-  KMCP_CRDS_RELEASE_NAME
-  KMCP_VERSION
-  MCP_SERVER_NAMESPACE
-  SERVER_NAME
-  MCP_SERVICE_PORT
-  MCP_LOCAL_PORT
-  ALLOWED_SEARCH_ENGINES
-  DEFAULT_SEARCH_ENGINE
-  USE_PROXY
-  PROXY_URL
-  RATE_LIMIT_QPS
-  ENABLE_METRICS
-  METRICS_PORT
-  PORT_FORWARD_PROBE_QUERY
-  TEST_SEARCH_QUERY
-  TEST_FETCH_GITHUB_REPO
-  MCP_PROTOCOL_VERSION
-  MCP_CLIENT_NAME
-  MCP_CLIENT_VERSION
-  MCP_SEARCH_LIMIT
-  MCP_SEARCH_ENGINES
-  SEARCH_ENGINES_JSON
-  MCP_ENDPOINT
-)
-
-for v in "${VARS[@]}"; do
-  printf "%s=%s\n" "$v" "${!v}"
-done
-```
-
-Summary: Prints the parameter set that subsequent steps depend on, enabling
-quick audits or troubleshooting.
+Run the executable guide to [Creating an AKS Cluster](Create_AKS.md) to
+validate Azure access, create the resource group, deploy the AKS cluster,
+add any optional node pools, and attach the registry to the cluster. Then run
+[Deploy ACR for AKS](incubation/Deploy_ACR_for_AKS.md) to provision Azure
+Container Registry, configure permissions, and export the ACR-related
+environment variables (`ACR_NAME`, `ACR_LOGIN_SERVER`, and related values).
+Return here once both guides report completion.
 
 ## Steps
 
@@ -475,19 +425,6 @@ curl -s \
 
 Summary: Verified MCP session remains active and captured example search
 results from the Open-WebSearch toolset.
-
-### Cleanup (optional)
-
-Remove local port-forward and Azure resources when experimentation concludes.
-
-```bash
-kill "${MCP_PORT_FORWARD_PID}" 2>/dev/null || true
-kubectl delete mcpserver "${SERVER_NAME}" -n "${MCP_SERVER_NAMESPACE}" || true
-az group delete --name "${AZURE_RESOURCE_GROUP}" --yes --no-wait || true
-```
-
-Summary: Initiated teardown of MCP deployment, Kubernetes resources, and Azure
-resource group.
 
 ## Summary
 
