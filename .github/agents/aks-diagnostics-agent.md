@@ -1,6 +1,7 @@
 ---
 name: aks-diagnostics-agent
 description: Diagnose AKS cluster health, performance, configuration, and cost, proposing safe remediations.
+model: GPT-5.1 (Preview) (copilot)
 tools:
   - "read"
   - "search"
