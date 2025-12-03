@@ -1,8 +1,8 @@
 # MCPaaS Project Tracker
 
-**Last Updated:** 2025-12-02  
+**Last Updated:** 2025-12-03  
 **Project Phase:** Early Stage Development  
-**Overall Status:** Active Development - Foundation work progressing well
+**Overall Status:** Active Development - KAITO work stream progressing
 
 ---
 
@@ -12,11 +12,14 @@ MCPaaS is building a comprehensive platform for developing, managing, and deploy
 
 ### Current Sprint Focus
 
-- Open-WebSearch AKS deployment completed and promoted to main docs
-- ACR deployment documentation completed and stress-tested
-- Multiple KAITO exec docs created (Install, Workspace, RAG, diagnostics)
-- Next: Begin demonstration videos and chat app integration
-- Next: Resolve IE MCP remote deployment issues
+- ✅ Open-WebSearch AKS deployment completed and promoted to main docs
+- ✅ ACR deployment documentation completed and stress-tested
+- ✅ Comprehensive KAITO documentation suite created (5 exec docs)
+- ✅ Project governance infrastructure completed (3.1.1)
+- 🔄 KAITO docs refactoring in progress (1.1.7) - separating platform from workload
+- 🔄 KAITO deployment video (1.2.1) in progress - script outline available
+- ⏸️ Tasks 1.1.1, 1.1.3, and 1.1.6 paused to focus resources on video pipeline
+- ⚠️ IE MCP remote deployment blocked (1.1.2) - needs debugging
 
 ### Key Risks
 
@@ -30,15 +33,16 @@ MCPaaS is building a comprehensive platform for developing, managing, and deploy
 
 |    ID | Task                                 | Status      | Priority | Dependencies        | Responsible          | Updated    |
 | ----: | ------------------------------------ | ----------- | -------- | ------------------- | -------------------- | ---------- |
-| 1.1.1 | Deploy KMCP & Echo MCP Server on AKS | in-progress | High     | None                | Platform Engineering | 2025-12-01 |
+| 1.1.1 | Deploy KMCP & Echo MCP Server on AKS | paused      | High     | None                | Platform Engineering | 2025-12-03 |
 | 1.1.2 | Innovation Engine MCP Server         | blocked     | High     | None                | Platform Engineering | 2025-12-01 |
-| 1.1.3 | Open-WebSearch on Local K8s          | in-progress | High     | None                | Platform Engineering | 2025-12-01 |
+| 1.1.3 | Open-WebSearch on Local K8s          | paused      | High     | None                | Platform Engineering | 2025-12-03 |
 | 1.1.4 | Open-WebSearch on AKS                | completed   | High     | 1.1.3, 1.1.1        | Platform Engineering | 2025-12-02 |
 | 1.1.5 | ACR Deployment Documentation         | completed   | High     | None                | Platform Engineering | 2025-12-02 |
-| 1.1.6 | KAITO Installation Exec Docs         | completed   | High     | None                | Platform Engineering | 2025-12-02 |
-| 1.2.1 | KAITO Deployment Video               | not-started | High     | 2.1.2               | Developer Relations  | 2025-12-01 |
+| 1.1.6 | KAITO Installation Exec Docs         | paused      | High     | None                | Platform Engineering | 2025-12-03 |
+| 1.1.7 | Refactor KAITO Docs for Modularity   | in-progress | High     | 1.1.6 (Phase A)     | Platform Engineering | 2025-12-03 |
+| 1.2.1 | KAITO Deployment Video               | in-progress | High     | 1.1.7               | Developer Relations  | 2025-12-03 |
 | 1.2.2 | OpenWebSearch AKS Deployment Video   | not-started | High     | 1.1.4               | Developer Relations  | 2025-12-01 |
-| 1.2.3 | Integrated Chat App with MCP & KAITO | not-started | High     | 1.2.1, 1.1.4        | Platform Engineering | 2025-12-01 |
+| 1.2.3 | Integrated Chat App with MCP & KAITO | not-started | High     | 1.1.6 (minimal), 1.1.4 | Platform Engineering | 2025-12-02 |
 | 1.2.4 | End-to-End Solution Demo Video       | not-started | Medium   | 1.2.3, 1.2.1, 1.2.2 | Developer Relations  | 2025-12-01 |
 | 1.3.1 | KAITO Exec Doc Workflows Deck        | not-started | High     | 1.2.4               | Product Management   | 2025-12-01 |
 | 1.3.2 | KAITO Workflow Review Meeting        | not-started | High     | 1.3.1               | Product Management   | 2025-12-01 |
@@ -48,7 +52,7 @@ MCPaaS is building a comprehensive platform for developing, managing, and deploy
 | 2.2.2 | WebSearch Monitoring Integration     | not-started | Low      | 1.1.4               | Platform Engineering | 2025-12-01 |
 | 2.2.3 | WebSearch Alerting                   | not-started | Low      | 2.2.2, 1.1.4        | Platform Engineering | 2025-12-01 |
 | 2.2.4 | WebSearch Autoscaling & Load Testing | not-started | Low      | 1.1.4               | Platform Engineering | 2025-12-01 |
-| 3.1.1 | Project Governance Setup             | in-progress | High     | None                | Product Management   | 2025-12-01 |
+| 3.1.1 | Project Governance Setup             | completed   | High     | None                | Product Management   | 2025-12-03 |
 
 ---
 
@@ -83,7 +87,8 @@ MCPaaS is building a comprehensive platform for developing, managing, and deploy
   3. Create and apply KMCP CRs
   4. Validate via MCP Inspector (port-forward or ingress)
   5. Document complete runbook with teardown
-- **Last Updated:** 2025-12-01
+- **Status:** Paused (deprioritized in favor of KAITO refactoring work)
+- **Last Updated:** 2025-12-03
 
 ---
 
@@ -174,7 +179,8 @@ MCPaaS is building a comprehensive platform for developing, managing, and deploy
   7. Conduct security review
   8. Write automated acceptance test suite
 - **Notes:** Execute with: `ie execute docs/OpenWebSearch_On_K8s_Local.md`. Source: https://github.com/Aas-ee/open-webSearch (TypeScript, Apache-2.0)
-- **Last Updated:** 2025-12-01
+- **Status:** Paused (core functionality complete, hardening tasks deferred)
+- **Last Updated:** 2025-12-03
 
 ---
 
@@ -230,38 +236,161 @@ MCPaaS is building a comprehensive platform for developing, managing, and deploy
 
 ### 1.1.6 — KAITO Installation and Workspace Exec Docs
 
-- **Description:** Create comprehensive executable documentation suite for KAITO (Kubernetes AI Toolchain Operator) covering installation, workspace deployment, diagnostics, and advanced use cases like RAG and multiple model workspaces.
-- **Acceptance Criteria:**
-  - Install_Kaito_On_AKS.md: Complete KAITO installation with GPU node pools
-  - Deploy_Kaito_Workspace.md: Single model workspace deployment pattern
-  - Deploy_Additional_Model_Workspaces_on_Kaito.md: Multi-model scenarios
-  - Deploy_RAG_On_Kaito_AKS.md: RAG architecture with KAITO
-  - Configure_Diagnostics_for_Kaito.md: Monitoring and troubleshooting
-  - All docs follow standard exec doc template
-  - Cross-references established between related docs
-  - Validation successful in target environment
+- **Description:** Create comprehensive executable documentation suite for KAITO (Kubernetes AI Toolchain Operator) covering installation, workspace deployment, diagnostics, and advanced use cases. This suite provides the foundational documentation needed for KAITO adoption and serves as the basis for demonstration videos (task 1.2.1) and stakeholder presentations (tasks 1.3.1, 1.3.2).
+- **Acceptance Criteria (Minimal for Demos):**
+  - Install_Kaito_On_AKS.md + Deploy_Kaito_Workspace.md validated once end-to-end
+  - Working KAITO workspace with accessible inference endpoint
+  - Basic smoke test confirms model responds to queries
+- **Acceptance Criteria (Full Validation):**
+  - All 5 docs execute successfully in clean environment
+  - Expected output patterns validated with similarity tests
+  - Cross-validation of RAG, diagnostics, and multi-model patterns
+  - Promoted from incubation to main docs directory
 - **Priority:** High
 - **Responsible:** Platform Engineering
-- **Dependencies:** None (builds on existing AKS cluster patterns)
+- **Dependencies:** None (builds on existing AKS cluster creation patterns)
 - **Progress:**
-  - ✅ Install_Kaito_On_AKS.md created (631 lines)
-  - ✅ Deploy_Kaito_Workspace.md created (307 lines)
-  - ✅ Deploy_Additional_Model_Workspaces_on_Kaito.md created (113 lines)
-  - ✅ Deploy_RAG_On_Kaito_AKS.md created (345 lines)
-  - ✅ Configure_Diagnostics_for_Kaito.md created (112 lines)
-  - ✅ All docs in incubation directory for validation
-  - ⏳ End-to-end execution validation pending (task 1.2.1 dependency)
+  - ✅ **Install_Kaito_On_AKS.md** created (21KB, ~630 lines)
+    - Covers: Azure CLI validation, subscription setup, KAITO controller installation
+    - Includes: GPU Provisioner with workload identity, federated credentials
+    - Features: Dynamic GPU node provisioning, auto-scaling configuration
+    - Pre-flight checks: GPU quota validation, SKU availability
+  - ✅ **Deploy_Kaito_Workspace.md** created (9.4KB, ~307 lines)
+    - Model: phi-3.5-mini-instruct on Standard_NC6s_v3 (NVIDIA V100)
+    - Deployment: Automatic GPU node creation via KAITO Workspace CRD
+    - Validation: OpenAI-compatible endpoint testing with curl
+    - Includes: Service discovery, pod readiness checks, inference verification
+  - ✅ **Deploy_Additional_Model_Workspaces_on_Kaito.md** created (3.0KB, ~113 lines)
+    - Pattern: Multiple model workspaces in single cluster
+    - Examples: Different model presets, GPU SKU selection
+    - Use cases: A/B testing, multi-tenant scenarios
+  - ✅ **Deploy_RAG_On_Kaito_AKS.md** created (11KB, ~345 lines)
+    - Architecture: In-cluster RAG service calling KAITO workspace
+    - Components: Document store, similarity search, LLM integration
+    - Demo: Simple RAG API with in-memory vector search
+    - Integration: OpenAI-compatible endpoint consumption
+  - ✅ **Configure_Diagnostics_for_Kaito.md** created (3.3KB, ~112 lines)
+    - Monitoring: Azure Monitor integration, Container Insights
+    - Logs: Workspace controller, GPU provisioner, model pods
+    - Troubleshooting: Common failure modes and remediation
+  - ✅ All docs follow standard template (Prerequisites, Steps, Validation, Cleanup)
+  - ✅ Environment variables standardized across suite with HASH uniqueness
+  - ✅ Cross-references added (Install → Deploy Workspace → RAG/Multi-model)
+  - ⏳ **Minimal validation for demos** (blocks 1.2.1, 1.2.3)
+    - Need: Execute Install_Kaito_On_AKS.md once
+    - Need: Execute Deploy_Kaito_Workspace.md and verify inference endpoint
+    - Need: Basic smoke test with sample query
+    - Estimated time: 60-90 minutes
+  - ⏳ **Full validation** (parallel work, non-blocking)
+    - RAG deployment testing
+    - Diagnostics validation
+    - Multi-model workspace testing
+    - Expected similarity tests across all docs
+    - Estimated time: Additional 60-90 minutes
 - **Risks & Mitigations:**
-  - Risk: GPU quota limitations in test environments. Mitigation: Pre-flight checks documented, multiple region options.
-  - Risk: KAITO version changes may break docs. Mitigation: Version pinning in docs, changelog tracking.
+  - Risk: GPU quota limitations in test subscriptions. Mitigation: Pre-flight quota checks included in Install doc; document includes multiple region/SKU options; coordinate with Azure support for quota increases if needed.
+  - Risk: KAITO version changes breaking compatibility. Mitigation: Docs specify KAITO version explicitly; changelog notes planned; regular review scheduled with KAITO upstream releases.
+  - Risk: High cost of GPU nodes for validation testing. Mitigation: Cleanup steps emphasized; time-boxed execution; use smallest viable GPU SKU (Standard_NC6s_v3); automated teardown scripts.
+  - Risk: Complex dependency chain (workload identity, federated credentials) error-prone. Mitigation: Step-by-step validation checks after each configuration; troubleshooting guide included; error patterns documented.
+- **Testing Strategy (Phased):**
+  - **Phase A (Minimal - Unblocks demos):** Install + Deploy Workspace + smoke test (60-90 min)
+  - **Phase B (Full - Parallel work):** RAG + Diagnostics + Multi-model validation (60-90 min)
+  - Success criteria Phase A: Working inference endpoint with sample query response
+  - Success criteria Phase B: All docs execute cleanly with expected similarity matches
+- **Next Steps (Priority Order):**
+  1. **Phase A - Unblock Refactor** (High Priority):
+     - Coordinate GPU quota validation in target subscription
+     - Execute Install_Kaito_On_AKS.md (30-45 min)
+     - Execute Deploy_Kaito_Workspace.md (20-30 min)
+     - Run basic inference smoke test
+     - **Handoff to task 1.1.7** - refactoring can proceed with validated baseline
+  2. **Phase B - Full Validation** (Medium Priority, after refactor):
+     - Execute refactored docs end-to-end
+     - Execute Deploy_RAG_On_Kaito_AKS.md
+     - Execute Configure_Diagnostics_for_Kaito.md
+     - Test Deploy_Additional_Model_Workspaces_on_Kaito.md
+     - Promote all validated docs from incubation to main docs
+     - Update README.md with KAITO references
+- **Related Tasks:**
+  - Enables: 1.1.7 (Refactor) - Phase A validation provides baseline for refactoring
+  - Indirectly Blocks: 1.2.1 (KAITO Video) - via 1.1.7 refactored docs
+  - Enables: 1.2.3 (Chat App) - Phase A provides working inference endpoint
+  - Feeds (Phase B): 1.3.1 (KAITO Workflows Deck) - full suite provides examples
+  - Feeds (Phase B): 2.1.2 (Phi-3 Fine-Tuning) - builds on installation pattern
+- **Documentation URLs:**
+  - Install: `docs/incubation/Install_Kaito_On_AKS.md`
+  - Deploy Workspace: `docs/incubation/Deploy_Kaito_Workspace.md`
+  - Multi-model: `docs/incubation/Deploy_Additional_Model_Workspaces_on_Kaito.md`
+  - RAG Integration: `docs/incubation/Deploy_RAG_On_Kaito_AKS.md`
+  - Diagnostics: `docs/incubation/Configure_Diagnostics_for_Kaito.md`
+- **Status:** Paused (documentation complete, validation deferred until after refactor)
+- **Last Updated:** 2025-12-03
+
+---
+
+### 1.1.7 — Refactor KAITO Docs for Modularity
+
+- **Description:** Refactor Install_Kaito_On_AKS.md to focus solely on platform bring-up (cluster setup, KAITO operator installation, workload identity) and remove workspace deployment content. Move all workspace-specific content to Deploy_Kaito_Workspace.md, making it the single authoritative source for model deployment patterns. This creates cleaner separation of concerns and improves doc reusability.
+- **Acceptance Criteria:**
+  - **Install_Kaito_On_AKS.md (Platform Bring-Up Only):**
+    - Prerequisites and GPU quota validation
+    - AKS cluster creation or assumption of existing cluster
+    - AI Toolchain Operator (KAITO) enablement via add-on or Helm
+    - Workload identity configuration and federated credentials
+    - GPU Provisioner setup and validation
+    - Cluster health verification (operator pods running, CRDs installed)
+    - No workspace YAML or model-specific deployment steps
+    - Ends with verified KAITO-ready cluster
+  - **Deploy_Kaito_Workspace.md (Single Source for Workspaces):**
+    - Prerequisites: completed Install_Kaito_On_AKS.md
+    - Workspace creation patterns for any model preset
+    - Examples: phi-3-mini-instruct, phi-3.5-mini-instruct, others
+    - Service endpoint discovery and validation
+    - Testing patterns: /v1/models API, inference curl commands
+    - Curl test pod creation and usage
+    - Cleanup and troubleshooting
+  - Both docs follow standard exec doc template
+  - Cross-references clearly established (Install → Deploy)
+  - Environment variables remain consistent between docs
+  - Expected_similarity tests updated for new structure
+  - Validation confirms clean execution of Install followed by Deploy
+- **Priority:** High
+- **Responsible:** Platform Engineering
+- **Dependencies:** 1.1.6 (Phase A - basic validation confirms current content works)
+- **Progress:**
+  - ⏳ In progress - refactoring documentation structure
+  - ⏳ Extracting workspace deployment from Install doc
+  - ⏳ Enhancing Deploy_Kaito_Workspace.md with consolidated content
+- **Risks & Mitigations:**
+  - Risk: Breaking existing validation workflows during refactor. Mitigation: Complete Phase A validation first to establish baseline; test refactored docs before replacing originals.
+  - Risk: Loss of workspace deployment examples. Mitigation: Ensure Deploy_Kaito_Workspace.md captures all examples from Install doc; maintain examples in both during transition.
+  - Risk: Confusion about which doc to use. Mitigation: Clear README section explaining doc flow; prominent cross-references; update all referencing docs.
+- **Rationale:**
+  - **Separation of Concerns:** Platform setup vs. workload deployment are distinct operations with different lifecycles
+  - **Reusability:** Install doc can be run once, Deploy doc multiple times for different models
+  - **Clarity:** Each doc has single, well-defined purpose
+  - **Maintenance:** Easier to update model-specific content without touching platform setup
+  - **User Experience:** Users can skip Install if cluster already has KAITO
 - **Next Steps:**
-  1. Execute Install_Kaito_On_AKS.md in clean environment
-  2. Validate all KAITO workspace deployment patterns
-  3. Test RAG deployment end-to-end
-  4. Promote validated docs from incubation to main docs directory
-  5. Create KAITO deployment video (task 1.2.1)
-- **Status:** Completed (pending validation before promotion)
-- **Last Updated:** 2025-12-02
+  1. Wait for 1.1.6 Phase A validation to establish baseline
+  2. Create backup copies of current docs
+  3. Extract workspace deployment sections from Install_Kaito_On_AKS.md
+  4. Enhance Deploy_Kaito_Workspace.md with extracted content
+  5. Update Install_Kaito_On_AKS.md to end at verified KAITO cluster
+  6. Add prerequisite checks in Deploy_Kaito_Workspace.md (KAITO installed, GPU provisioner ready)
+  7. Update cross-references and README
+  8. Execute refactored docs end-to-end (Install → Deploy)
+  9. Update 1.2.1 dependency to reference refactored docs
+  10. Mark original versions as deprecated in commit message
+- **Related Tasks:**
+  - Blocks: 1.2.1 (Video) - video should showcase clean Install → Deploy flow
+  - Enhances: 1.1.6 (Phase B) - cleaner structure benefits full validation
+  - Feeds: 1.3.1 (Workflows Deck) - demonstrates modular workflow pattern
+- **Documentation URLs (Post-Refactor):**
+  - Platform: `docs/incubation/Install_Kaito_On_AKS.md` (platform only)
+  - Workspaces: `docs/incubation/Deploy_Kaito_Workspace.md` (models/endpoints)
+- **Status:** In Progress (refactoring underway)
+- **Last Updated:** 2025-12-03
 
 ---
 
@@ -269,37 +398,41 @@ MCPaaS is building a comprehensive platform for developing, managing, and deploy
 
 ### 1.2.1 — KAITO Deployment Video
 
-- **Description:** Create comprehensive video demonstration showing end-to-end deployment of KAITO on AKS using the executable documentation approach. Video will showcase the Exec Doc pattern, GPU quota validation, KAITO installation, workspace creation, and model deployment. This serves as both a marketing asset and technical reference for users adopting the MCPaaS platform patterns.
+- **Description:** Create video demonstration showing end-to-end deployment of KAITO on AKS using executable documentation. Video showcases Install_Kaito_On_AKS.md and Deploy_Kaito_Workspace.md patterns, demonstrating the power of exec docs for AI infrastructure deployment.
 - **Acceptance Criteria:**
-  - Video demonstrates complete KAITO deployment from clean AKS cluster to working model inference
+  - Video demonstrates KAITO deployment from clean AKS to working model inference
   - Showcases executable documentation workflow (ie execute command usage)
-  - Covers prerequisite checks (GPU quota, Azure CLI, subscription setup)
-  - Shows KAITO add-on enablement and workspace creation
-  - Demonstrates model deployment and inference validation
-  - Includes troubleshooting tips for common issues
+  - Covers Install_Kaito_On_AKS.md and Deploy_Kaito_Workspace.md
+  - Shows model deployment and inference validation with sample query
   - Video quality: HD (1080p minimum), clear audio, proper pacing
   - Duration: 10-15 minutes with chapter markers
   - Published to accessible platform (YouTube, Microsoft Learn, project docs)
   - Accompanying written transcript or summary provided
 - **Priority:** High
 - **Responsible:** Developer Relations
-- **Dependencies:** 2.1.2 (or existing KAITO installation docs as alternative)
+- **Dependencies:** 1.1.7 (Refactored Install + Deploy docs)
 - **Progress:**
-  - ❌ Not started
+  - ✅ Video outline complete (see `presentations/kaito-deployment-video-outline.md`)
+  - ⏳ Waiting for 1.1.7 completion (refactored docs)
+  - ⏳ Script development ready to proceed once docs refactored
 - **Risks & Mitigations:**
   - Risk: Video becomes outdated as KAITO/AKS evolves. Mitigation: Include version numbers, plan for quarterly reviews, maintain update schedule.
   - Risk: GPU quota limitations prevent clean demo run. Mitigation: Use pre-validated environment, have fallback cluster ready.
   - Risk: Complex topics hard to convey in video format. Mitigation: Script carefully, use visual aids, provide timestamped chapters.
 - **Next Steps:**
-  1. Review existing KAITO exec docs and identify optimal demo flow
-  2. Create video script with chapter outline
-  3. Set up clean demo environment with validated quota
-  4. Record screen capture with voiceover
-  5. Edit video with callouts, annotations, and chapter markers
-  6. Create accompanying written summary
-  7. Publish and link from project documentation
-  8. Gather feedback and iterate
-- **Last Updated:** 2025-12-01
+  1. Wait for task 1.1.7 completion (refactored docs)
+  2. Review and finalize script based on outline in `presentations/kaito-deployment-video-outline.md`
+  3. Set up clean demo environment with GPU quota validated
+  4. Record screen capture following outline structure:
+     - Pre-flight: Azure environment & GPU quota (2-3 min)
+     - AKS cluster creation (2-3 min)
+     - KAITO installation with workload identity (3-4 min)
+     - Workspace deployment and testing (3-4 min)
+     - Wrap-up and next steps (1-2 min)
+  5. Edit with annotations, callouts, and chapter markers
+  6. Publish with written summary
+- **Notes:** Comprehensive outline complete in presentations folder covering pain points, exec docs value, and E2E flow. Video will position executable docs as solution to fragmented KAITO documentation.
+- **Last Updated:** 2025-12-03
 
 ---
 
@@ -342,22 +475,19 @@ MCPaaS is building a comprehensive platform for developing, managing, and deploy
 
 ### 1.2.3 — Integrated Chat App with MCP & KAITO
 
-- **Description:** Deploy and integrate an open-source chat application (e.g., Open WebUI, LibreChat, or similar) on AKS that leverages KAITO-deployed LLM for inference and OpenWebSearch MCP server for web search augmentation. Create end-to-end solution where users can ask questions and receive web-augmented responses, demonstrating the full MCPaaS value proposition of orchestrating AI workloads with MCP tools.
+- **Description:** Deploy an open-source chat application on AKS that connects to a KAITO-deployed LLM and integrates OpenWebSearch MCP server. Demonstrates end-to-end AI + MCP orchestration pattern.
 - **Acceptance Criteria:**
-  - Open-source chat application selected and evaluated (licensing, features, extensibility)
-  - Chat app deployed to same AKS cluster as KAITO workspace
-  - Chat app configured to use KAITO-hosted LLM as backend (e.g., Phi-3 or Mistral)
-  - OpenWebSearch MCP server integrated as tool/plugin for the chat app
-  - End-to-end flow validated: user asks question → LLM processes → MCP search triggered → results incorporated → response returned
-  - Example use case: "What are the latest features in AKS?" returns web-searched results
-  - Authentication/authorization configured (basic level acceptable for demo)
-  - Resource limits and health checks configured
-  - Network policies ensure secure communication between components
-  - Executable documentation created for deployment
-  - Troubleshooting guide for integration issues
+  - Open-source chat app selected and deployed to AKS (same cluster as KAITO)
+  - Chat app configured to use KAITO workspace inference endpoint
+  - OpenWebSearch MCP server integrated as tool/plugin
+  - End-to-end flow validated: user query → LLM → MCP search → augmented response
+  - Example: "What are latest AKS features?" triggers web search and synthesis
+  - Basic authentication configured
+  - Resource limits and health checks in place
+  - Executable documentation created
 - **Priority:** High
 - **Responsible:** Platform Engineering
-- **Dependencies:** 1.2.1, 1.1.4
+- **Dependencies:** 1.1.6 (Phase A - working KAITO workspace), 1.1.4 (OpenWebSearch on AKS)
 - **Progress:**
   - ❌ Not started
 - **Risks & Mitigations:**
@@ -366,18 +496,15 @@ MCPaaS is building a comprehensive platform for developing, managing, and deploy
   - Risk: Resource contention on AKS cluster. Mitigation: Right-size node pools, implement resource quotas, monitor and scale as needed.
   - Risk: Complex multi-component integration increases failure points. Mitigation: Implement comprehensive health checks, circuit breakers, and fallback behaviors.
 - **Next Steps:**
-  1. Research and evaluate open-source chat apps (Open WebUI, LibreChat, Continue, others)
-  2. Select chat app based on: MCP/tool support, deployment simplicity, community activity
-  3. Create deployment manifests for chosen chat app
-  4. Configure chat app to connect to KAITO LLM endpoint
-  5. Develop MCP integration layer (native plugin or adapter)
-  6. Configure OpenWebSearch MCP server as available tool
-  7. Test end-to-end flow with sample queries
-  8. Implement error handling and fallback logic
-  9. Document architecture and deployment steps as exec doc
-  10. Create troubleshooting guide
-- **Notes:** Consider Open WebUI (supports Ollama/OpenAI-compatible endpoints) or LibreChat (extensible with plugins). Verify MCP protocol compatibility or plan adapter development. Example query flow: User: "What's new in AKS?" → LLM: [generates search query] → MCP: [web search] → LLM: [synthesizes with results] → User: [receives answer with sources].
-- **Last Updated:** 2025-12-01
+  1. Wait for task 1.1.6 Phase A (working KAITO workspace endpoint)
+  2. Research chat apps with OpenAI-compatible API support (Open WebUI, LibreChat)
+  3. Select based on MCP/tool integration capabilities
+  4. Deploy chat app and configure KAITO workspace endpoint
+  5. Integrate OpenWebSearch as MCP tool
+  6. Test end-to-end with web-augmented queries
+  7. Document as executable doc
+- **Notes:** Can proceed in parallel with 1.2.1 (video). Both just need working KAITO workspace.
+- **Last Updated:** 2025-12-02
 
 ---
 
@@ -671,31 +798,27 @@ MCPaaS is building a comprehensive platform for developing, managing, and deploy
 
 ### 3.1.1 — Project Governance Setup
 
-- **Description:** Establish project management structures including tracker maintenance workflow, PRD alignment, and stakeholder communication patterns. Ensures project visibility and accountability as team expands.
+- **Description:** Establish foundational project management structures including tracker system, PRD organization, and tracking agent operational capabilities.
 - **Acceptance Criteria:**
   - Tracker agent operational and updating .pm/tracker.md regularly
   - PRD aligned with current project scope and roadmap
-  - Weekly status updates established
-  - Risk register maintained
-  - Stakeholder communication plan documented
+  - Risk register maintained in tracker
+  - Tracking infrastructure supports ongoing project visibility
 - **Priority:** High
 - **Responsible:** Product Management
 - **Dependencies:** None
 - **Progress:**
   - ✅ PRD moved to .pm/ directory
   - ✅ Tracker.md initialized with current project state
-  - ✅ Tracker agent definition generalized
-  - ⏳ Regular update cadence to be established
-  - ⏳ Stakeholder communication plan pending
-- **Risks & Mitigations:**
-  - Risk: Tracker becomes stale without automation. Mitigation: Set up regular review schedule, consider automation hooks.
-- **Next Steps:**
-  1. Establish weekly tracker review schedule
-  2. Define stakeholder communication cadence
-  3. Create risk review process
-  4. Document escalation paths
-  5. Set up automated reminders for tracker updates
-- **Last Updated:** 2025-12-01
+  - ✅ Tracker agent definition generalized and operational
+  - ✅ 18 tasks tracked across 3 phases with status, dependencies, risks
+  - ✅ Risk register established and maintained
+  - ✅ Task summary table with filtering capabilities
+  - ✅ Changelog tracking all major updates
+  - ✅ Agent-based workflow operational for ongoing maintenance
+- **Outcome:** Foundational governance infrastructure complete. Tracker agent is operational and maintaining project visibility. Additional governance refinements (stakeholder communications, review cadences) will evolve organically as team needs emerge.
+- **Status:** Completed
+- **Last Updated:** 2025-12-03
 
 ---
 
@@ -733,15 +856,18 @@ MCPaaS is building a comprehensive platform for developing, managing, and deploy
 - ✅ Open-WebSearch local deployment and basic functionality validated
 - ✅ Open-WebSearch AKS deployment with search working
 
-### Sprint Current (2025-12-02)
+### Sprint Current (2025-12-03)
 
 - ✅ Open-WebSearch AKS documentation stress-tested and promoted
 - ✅ ACR deployment documentation created and validated
 - ✅ Comprehensive KAITO documentation suite created (5 exec docs)
 - ✅ Agent definitions linted and updated for consistency
-- ✅ Multiple exec docs promoted from incubation
-- ⏳ KAITO docs awaiting end-to-end validation
-- ⏳ IE MCP remote deployment still blocked
+- ✅ Project governance infrastructure completed (3.1.1)
+- 🔄 KAITO docs refactoring in progress (1.1.7) to separate platform from workload
+- 🔄 KAITO deployment video (1.2.1) in progress, waiting on refactored docs
+- ⏸️ Tasks 1.1.1 (KMCP/Echo), 1.1.3 (OpenWebSearch local), and 1.1.6 (KAITO validation) paused
+- ⏳ IE MCP remote deployment still blocked (1.1.2)
+- 📋 KAITO refactor (1.1.7) completion unblocks video recording (1.2.1)
 
 ---
 
@@ -795,3 +921,10 @@ MCPaaS is building a comprehensive platform for developing, managing, and deploy
   - 1.2.4: End-to-End Solution Demo Video (Medium priority)
 - 2025-12-01: Dependency tracking review - Added Dependencies column to summary table and standardized dependency notation across all tasks (task IDs vs prerequisites)
 - 2025-12-02: Major documentation milestone - Added tasks 1.1.5 (ACR) and 1.1.6 (KAITO suite) as completed. Open-WebSearch AKS promoted to main docs. 5 new KAITO exec docs created covering installation, workspace deployment, RAG, diagnostics, and multi-model scenarios. Updated sprint focus and risks based on recent progress.
+- 2025-12-02 (evening): Expanded task 1.1.6 with comprehensive detail on each KAITO doc, testing strategy, and validation plan. Changed status from completed to in-progress to reflect that validation execution is required before promotion from incubation. Added detailed descriptions of doc content, file sizes, and dependencies. Clarified critical path: KAITO validation blocks both video production (1.2.1) and chat app integration (1.2.3).
+- 2025-12-02 (late): Simplified KAITO validation approach based on PM feedback. Split validation into Phase A (minimal - Install + Workspace only, unblocks demos) and Phase B (full suite, parallel work). Updated dependencies: 1.2.1 now depends on 1.1.6 Phase A only (not 2.1.2). 1.2.3 now depends on 1.1.6 Phase A (not 1.2.1), allowing video and chat app to proceed in parallel. Reduced critical path from ~2 hours to ~1 hour for demo unblocking.
+- 2025-12-03: Added task 1.1.7 (Refactor KAITO Docs for Modularity) to separate platform bring-up (Install_Kaito_On_AKS.md) from workspace deployment (Deploy_Kaito_Workspace.md). Updated dependencies: 1.2.1 now depends on 1.1.7 (refactored docs) instead of 1.1.6 Phase A, ensuring video showcases clean modular pattern. Task 1.1.6 Phase A now unblocks refactor (1.1.7) rather than demos directly. This improves doc reusability and maintenance while maintaining minimal critical path.
+- 2025-12-03 (late): Marked task 1.1.7 as in-progress. Refactoring work begun to separate Install_Kaito_On_AKS.md (platform only) from Deploy_Kaito_Workspace.md (workspaces/models). Updated sprint focus to reflect active refactoring work.
+- 2025-12-03 (evening): Paused tasks 1.1.1 (KMCP/Echo MCP) and 1.1.3 (OpenWebSearch local) to focus platform engineering resources on KAITO refactoring (1.1.7) and unblocking video production pipeline. Both paused tasks have core functionality working and can resume when capacity allows.
+- 2025-12-03 (late): Completed task 3.1.1 (Project Governance Setup). Foundational tracking infrastructure operational with tracker agent maintaining 18 tasks across 3 phases, comprehensive risk register, and dependency tracking. Removed outstanding governance refinement items as they will evolve organically with project needs.
+- 2025-12-03 (night): Paused task 1.1.6 (KAITO Installation validation) to avoid blocking refactor work. Validation will proceed after 1.1.7 completes with refactored docs. Started task 1.2.1 (KAITO Deployment Video) with script planning and preparation while waiting for 1.1.7 completion. Video outline complete in `presentations/kaito-deployment-video-outline.md` covering full E2E flow with emphasis on executable docs value proposition.
