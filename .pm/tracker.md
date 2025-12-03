@@ -359,10 +359,10 @@ MCPaaS is building a comprehensive platform for developing, managing, and deploy
 - **Dependencies:** 1.1.6 (Phase A - basic validation confirms current content works)
 - **Progress:**
   - ⏳ In progress - refactoring documentation structure
-  - ✅ GPU quota validation extracted to Check_GPU_Quota_For_Kaito.md and working
-  - ⏳ Integrating quota validation doc into Install_Kaito_On_AKS.md workflow
-  - ⏳ Extracting workspace deployment from Install doc
-  - ⏳ Enhancing Deploy_Kaito_Workspace.md with consolidated content
+  - ✅ **Phase 1 Complete:** GPU quota validation extracted to Check_GPU_Quota_For_Kaito.md and working
+  - ✅ **Phase 2 Complete:** Quota validation integrated into Install_Kaito_On_AKS.md workflow
+  - ⏳ **Phase 3 In Progress:** Extracting workspace deployment from Install doc
+  - ⏳ **Phase 4 Pending:** Enhancing Deploy_Kaito_Workspace.md with consolidated content
 - **Risks & Mitigations:**
   - Risk: Breaking existing validation workflows during refactor. Mitigation: Complete Phase A validation first to establish baseline; test refactored docs before replacing originals.
   - Risk: Loss of workspace deployment examples. Mitigation: Ensure Deploy_Kaito_Workspace.md captures all examples from Install doc; maintain examples in both during transition.
@@ -374,16 +374,15 @@ MCPaaS is building a comprehensive platform for developing, managing, and deploy
   - **Maintenance:** Easier to update model-specific content without touching platform setup
   - **User Experience:** Users can skip Install if cluster already has KAITO
 - **Next Steps:**
-  1. Complete integration of Check_GPU_Quota_For_Kaito.md into Install doc workflow
-  2. Extract workspace deployment sections from Install_Kaito_On_AKS.md
-  3. Enhance Deploy_Kaito_Workspace.md with extracted content
-  4. Update Install_Kaito_On_AKS.md to end at verified KAITO cluster
-  5. Add prerequisite checks in Deploy_Kaito_Workspace.md (KAITO installed, GPU provisioner ready)
-  6. Update cross-references between all three docs
-  7. Update README with new three-phase doc flow
-  8. Execute refactored docs end-to-end (Quota Check → Install → Deploy)
-  9. Update 1.2.1 (video) to reference refactored docs
-  10. Commit refactored docs and mark originals as deprecated
+  1. **Phase 3 (Current):** Extract workspace deployment sections from Install_Kaito_On_AKS.md
+  2. **Phase 4:** Enhance Deploy_Kaito_Workspace.md with extracted content
+  3. Update Install_Kaito_On_AKS.md to end at verified KAITO cluster (no workspace deployment)
+  4. Add prerequisite checks in Deploy_Kaito_Workspace.md (KAITO installed, GPU provisioner ready)
+  5. Update cross-references between all three docs
+  6. Update README with new three-phase doc flow
+  7. Execute refactored docs end-to-end (Quota Check → Install → Deploy)
+  8. Update 1.2.1 (video) to reference refactored docs
+  9. Commit refactored docs and mark originals as deprecated
 - **Related Tasks:**
   - Blocks: 1.2.1 (Video) - video should showcase clean Install → Deploy flow
   - Enhances: 1.1.6 (Phase B) - cleaner structure benefits full validation
