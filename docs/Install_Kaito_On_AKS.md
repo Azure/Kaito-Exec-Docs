@@ -106,138 +106,45 @@ dependencies before continuing.
 ### Deployment Configuration
 
 To facilitate reuse we will export the environment variables that define our
-provisioning options, and validation helpers. Note that if a variable
-already has a value that value will be given preference, this means you can
-set any of these values manually if you so desire, these commands will not
-override your chosen values.
+provisioning options and validation helpers. Note that if a variable already
+has a value that value will be given preference, this means you can set any of
+these values manually if you so desire, these commands will not override your
+chosen values.
 
 Unique names append a timestamp based `HASH` suffix to prevent collisions.
 
 ```bash
 export HASH="${HASH:-$(date -u +"%y%m%d%H%M")}"
-echo "HASH=" $HASH
+export AZURE_LOCATION="${AZURE_LOCATION:-eastus2}"
+export AZURE_RESOURCE_GROUP="${AZURE_RESOURCE_GROUP:-kaito-rg-${HASH}}"
+export AZURE_VM_SIZE="${AZURE_VM_SIZE:-Standard_NC40ads_H100_v5}"
+
+echo "HASH=${HASH}"
+echo "AZURE_LOCATION=${AZURE_LOCATION}"
+echo "AZURE_RESOURCE_GROUP=${AZURE_RESOURCE_GROUP}"
+echo "AZURE_VM_SIZE=${AZURE_VM_SIZE}"
 ```
 
 This command seeds the `HASH` variable so every resource created in the
-remaining steps gains a predictable, unique suffix.
+remaining steps gains a predictable, unique suffix and establishes defaults for
+the Azure location, resource group and KAITO workspace VM size.
 
-<!-- expected_similarity=0.2 -->
+<!-- expected_similarity="AZURE_LOCATION=.*" -->
 
 ```text
-Hash=2511250506
+HASH= 2512021200
+AZURE_LOCATION=eastus2
+AZURE_RESOURCE_GROUP=kaito-rg-2512021200
+AZURE_VM_SIZE=Standard_NC40ads_H100_v5
 ```
 
-We need to define some general Azure management variables.
-
-```bash
-export AZURE_SUBSCRIPTION_ID="${AZURE_SUBSCRIPTION_ID:-$(az account show --query id -o tsv)}"
-export AZURE_LOCATION="${AZURE_LOCATION:-eastus2}"
-export AZURE_RESOURCE_GROUP="${AZURE_RESOURCE_GROUP:-kaito-rg_${HASH}}"
-```
-
-These exports align the subscription, region, and resource group context so
-every subsequent Azure CLI command targets the same scope.
-
-We also need to define a number of KAITO configution values:
-
-```bash
-export KAITO_VM_SIZE="${KAITO_VM_SIZE:-Standard_NC40ads_H100_v5}"
-```
-
-These variables pin the KAITO workspace settings and preferred GPU VM size so
-the deployment behaves consistently run after run.
-
-### GPU Quota
+### GPU Quota (Prerequisite)
 
 In order to deploy KAITO workloads we will need sufficient GPUs available to our
-subscription. The following code will verify that the subscription has sufficient
-vCPU quota for GPU VMs in the
-target region before attempting deployment. A limit of zero indicates no quota
-has been allocated and must be requested before proceeding.
+subscription. Since deploying this entire infrastructure is time consuming and incurs costs it is worth checking the availability of quota in your subscription before progressing. GPU quota validation is captured in a dedicated executable document
+so it can be reused across KAITO and other GPU workloads.
 
-```bash
-if [ -z "${AZURE_SUBSCRIPTION_ID}" ]; then
-  export AZURE_SUBSCRIPTION_ID=$(az account show --query id -o tsv)
-fi
-
-echo "Checking GPU quota for ${KAITO_VM_SIZE} in ${AZURE_LOCATION}..."
-
-SKU_INFO=$(az vm list-skus --location "${AZURE_LOCATION}" \
-  --size "${KAITO_VM_SIZE}" \
-  --resource-type virtualMachines \
-  --output json 2>/dev/null | jq -r '.[0].family' 2>/dev/null)
-
-if [ -z "${SKU_INFO}" ] || [ "${SKU_INFO}" = "null" ]; then
-  echo "Could not determine VM family for ${KAITO_VM_SIZE}"
-  echo "Attempting to list all GPU quota..."
-  QUOTA_CHECK=$(az vm list-usage --location "${AZURE_LOCATION}" \
-    --query "[?contains(name.value, 'NC') || contains(name.value, 'ND')]" \
-    -o json 2>/dev/null)
-else
-  echo "VM Family: ${SKU_INFO}"
-  QUOTA_CHECK=$(az vm list-usage --location "${AZURE_LOCATION}" \
-    --query "[?name.value=='${SKU_INFO}']" \
-    -o json 2>/dev/null)
-fi
-
-if [ -n "${QUOTA_CHECK}" ] && [ "${QUOTA_CHECK}" != "[]" ]; then
-  echo "${QUOTA_CHECK}" | jq -r '.[] |
-    "VM Family: \(.name.localizedValue)\n" +
-    "  Current: \(.currentValue) vCPUs\n" +
-    "  Limit: \(.limit) vCPUs\n" +
-    "  Available: \((.limit | tonumber) - (.currentValue | tonumber)) vCPUs"'
-
-  ZERO_QUOTA=$(echo "${QUOTA_CHECK}" | jq -r '
-    map(select((.limit | tonumber) == 0)) |
-    if length > 0 then "true" else "false" end')
-
-  if [ "${ZERO_QUOTA}" = "true" ]; then
-    echo ""
-    echo "WARNING: One or more GPU families have zero quota!"
-    echo ""
-    echo "Request quota increase using Azure CLI:"
-    echo "  az quota usage show --scope /subscriptions/${AZURE_SUBSCRIPTION_ID}/providers/Microsoft.Compute/locations/${AZURE_LOCATION} --resource-name standardNCASv3_T4Family"
-    echo ""
-    echo "  az quota create --resource-name standardNCASv3_T4Family \\"
-    echo "    --scope /subscriptions/${AZURE_SUBSCRIPTION_ID}/providers/Microsoft.Compute/locations/${AZURE_LOCATION} \\"
-    echo "    --limit-object value=8 --resource-type standard"
-    echo ""
-    echo "Or via Azure Portal:"
-    echo "  https://learn.microsoft.com/azure/quotas/quickstart-increase-quota-portal"
-    echo ""
-    echo "Recommended: At least 8 vCPUs for ${KAITO_VM_SIZE}"
-    echo ""
-    echo "Continue anyway? (Ctrl+C to abort, Enter to continue)"
-    read
-  else
-    echo ""
-    echo "✓ GPU quota is allocated (verify sufficient capacity above)"
-  fi
-else
-  echo "Could not retrieve GPU quota information for ${AZURE_LOCATION}"
-  echo "Verify GPU VM families are available in this region"
-  echo ""
-  echo "Continue anyway? (Ctrl+C to abort, Enter to continue)"
-  read
-fi
-```
-
-These commands validate GPU quota availability in the target region and pause
-if capacity must be requested before proceeding.
-
-This will output something like the following, if quota is available:
-
-<!-- expected_similarity="Available.*vCPUs" -->
-
-```text
-Checking GPU quota in northcentralus...
-VM Family: Standard NCASv3_T4 Family vCPUs
-  Current: 0 vCPUs
-  Limit: 24 vCPUs
-  Available: 24 vCPUs
-
-✓ GPU quota is allocated (verify sufficient capacity above)
-```
+Execute the quota check executable doc: [Check GPU Quota for KAITO on AKS](Check_GPU_Quota_For_Kaito.md). This document has defaults for the required variables, of course, you could override them in your environment if you wanted to.
 
 ### AKS Cluster
 
@@ -250,12 +157,12 @@ export AKS_CLUSTER_NAME="${AKS_CLUSTER_NAME:-kaito-cluster_${HASH}}"
 This variable sets the target AKS cluster name, defaulting to a unique value
 derived from the shared HASH suffix.
 
-By following the executable guide [Creating an AKS Cluster](../Create_AKS.md) we can ensure that the required AKS cluster is already available, or is created and that `kubectl` is configured to operate on it.
+By following the executable guide [Creating an AKS Cluster](Create_AKS.md) we can ensure that the required AKS cluster is already available, or is created and that `kubectl` is configured to operate on it.
 
 ### Summary
 
-- Established reproducible defaults and prints the resulting configuration for quick review before provisioning.
-- Validated that GPU quota is available.
+- Established reproducible defaults and printed the resulting configuration for quick review before provisioning.
+- Validated that GPU quota is available using `Check_GPU_Quota_For_Kaito.md`.
 - Ensured that there is an active AKS cluster.
 
 ## Steps
@@ -363,7 +270,7 @@ kind: Workspace
 metadata:
   name: workspace-phi-3-mini
 resource:
-  instanceType: "${KAITO_VM_SIZE}"
+  instanceType: "${AZURE_VM_SIZE}"
   labelSelector:
     matchLabels:
       apps: phi-3
