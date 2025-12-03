@@ -359,8 +359,9 @@ MCPaaS is building a comprehensive platform for developing, managing, and deploy
 - **Dependencies:** 1.1.6 (Phase A - basic validation confirms current content works)
 - **Progress:**
   - ⏳ In progress - refactoring documentation structure
+  - ✅ GPU quota validation extracted to Check_GPU_Quota_For_Kaito.md and working
+  - ⏳ Integrating quota validation doc into Install_Kaito_On_AKS.md workflow
   - ⏳ Extracting workspace deployment from Install doc
-  - ⏳ Extracting GPU quota validation to separate doc (Check_GPU_Quota_For_Kaito.md)
   - ⏳ Enhancing Deploy_Kaito_Workspace.md with consolidated content
 - **Risks & Mitigations:**
   - Risk: Breaking existing validation workflows during refactor. Mitigation: Complete Phase A validation first to establish baseline; test refactored docs before replacing originals.
@@ -373,21 +374,22 @@ MCPaaS is building a comprehensive platform for developing, managing, and deploy
   - **Maintenance:** Easier to update model-specific content without touching platform setup
   - **User Experience:** Users can skip Install if cluster already has KAITO
 - **Next Steps:**
-  1. Complete GPU quota validation extraction to Check_GPU_Quota_For_Kaito.md
+  1. Complete integration of Check_GPU_Quota_For_Kaito.md into Install doc workflow
   2. Extract workspace deployment sections from Install_Kaito_On_AKS.md
   3. Enhance Deploy_Kaito_Workspace.md with extracted content
   4. Update Install_Kaito_On_AKS.md to end at verified KAITO cluster
   5. Add prerequisite checks in Deploy_Kaito_Workspace.md (KAITO installed, GPU provisioner ready)
-  6. Update cross-references to include Check_GPU_Quota_For_Kaito.md
-  7. Update README with new doc flow
+  6. Update cross-references between all three docs
+  7. Update README with new three-phase doc flow
   8. Execute refactored docs end-to-end (Quota Check → Install → Deploy)
-  9. Update 1.2.1 dependency to reference refactored docs
-  10. Mark original versions as deprecated in commit message
+  9. Update 1.2.1 (video) to reference refactored docs
+  10. Commit refactored docs and mark originals as deprecated
 - **Related Tasks:**
   - Blocks: 1.2.1 (Video) - video should showcase clean Install → Deploy flow
   - Enhances: 1.1.6 (Phase B) - cleaner structure benefits full validation
   - Feeds: 1.3.1 (Workflows Deck) - demonstrates modular workflow pattern
 - **Documentation URLs (Post-Refactor):**
+  - Quota Check: `docs/incubation/Check_GPU_Quota_For_Kaito.md` (pre-flight validation)
   - Platform: `docs/incubation/Install_Kaito_On_AKS.md` (platform only)
   - Workspaces: `docs/incubation/Deploy_Kaito_Workspace.md` (models/endpoints)
 - **Status:** In Progress (refactoring underway)
