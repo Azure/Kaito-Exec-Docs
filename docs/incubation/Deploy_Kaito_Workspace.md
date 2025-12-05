@@ -17,17 +17,7 @@ automatic GPU provisioning and model deployment.
 
 ## Prerequisites
 
-Before starting, ensure KAITO is installed on your AKS cluster with workload
-identity configured for automatic GPU provisioning. All prerequisites from
-Install_Kaito_On_AKS.md must be completed.
-
-- KAITO workspace controller installed (see Install_Kaito_On_AKS.md)
-- Azure GPU Provisioner configured with workload identity
-- Managed identity with VM and network permissions on node resource group
-- Federated credentials configured for gpu-provisioner service account
-- kubectl connected to the target AKS cluster
-- Sufficient Azure quota for GPU VM instances (Standard_NC6s_v3 or similar)
-- Optional: `jq` for parsing JSON responses
+The commands in this document need to use `kubectl` and `jq` so lets ensure they are intstalled first.
 
 ```bash
 command -v kubectl >/dev/null || echo "kubectl missing"
@@ -57,29 +47,8 @@ The `GPU_INSTANCE_TYPE` determines the Azure VM SKU used for the inference
 workload. Standard_NC6s_v3 provides a single NVIDIA V100 GPU suitable for
 smaller models. Larger models may require NC24ads_A100_v4 or similar SKUs.
 
-For reference dump the current values of these environment variables to the
-console.
-
-```bash
-VARS=(
-  HASH
-  WORKSPACE_NAME
-  WORKSPACE_NAMESPACE
-  MODEL_PRESET
-  GPU_INSTANCE_TYPE
-  WORKSPACE_LABEL_KEY
-  WORKSPACE_LABEL_VALUE
-  WORKSPACE_MANIFEST
-  CURL_POD_NAME
-)
-
-for var in "${VARS[@]}"; do
-  printf "%s=%s\n" "${var}" "${!var}"
-done
-```
-
 Before proceeding, ensure KAITO is properly installed on your cluster by
-following the [Install KAITO On AKS](Install_Kaito_On_AKS.md) guide.
+following the [Install KAITO On AKS](../Install_Kaito_On_AKS.md) guide.
 
 Summary: Establishes workspace naming, model selection, and GPU instance
 configuration for the deployment.
