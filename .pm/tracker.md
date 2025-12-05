@@ -18,8 +18,8 @@ MCPaaS is building a comprehensive platform for developing, managing, and deploy
 - ✅ Project governance infrastructure completed (3.1.1)
 - 🔄 KAITO docs refactoring in progress (1.1.7) - separating platform from workload
 - 🔄 KAITO deployment video (1.2.1) in progress - script outline available
-- ⏸️ Tasks 1.1.1, 1.1.3, and 1.1.6 paused to focus resources on video pipeline
-- ⚠️ IE MCP remote deployment blocked (1.1.2) - needs debugging
+- ⏸️ Tasks 1.1.1, 1.1.3, and 1.1.6 paused with Medium/High priorities to focus resources on KAITO
+- ⬇️ Tasks 1.1.2 and 1.2.3 deprioritized to Low - not blocking current sprint objectives
 
 ### Key Risks
 
@@ -33,16 +33,16 @@ MCPaaS is building a comprehensive platform for developing, managing, and deploy
 
 |    ID | Task                                 | Status      | Priority | Dependencies        | Responsible          | Updated    |
 | ----: | ------------------------------------ | ----------- | -------- | ------------------- | -------------------- | ---------- |
-| 1.1.1 | Deploy KMCP & Echo MCP Server on AKS | paused      | High     | None                | Platform Engineering | 2025-12-03 |
-| 1.1.2 | Innovation Engine MCP Server         | blocked     | High     | None                | Platform Engineering | 2025-12-01 |
-| 1.1.3 | Open-WebSearch on Local K8s          | paused      | High     | None                | Platform Engineering | 2025-12-03 |
+| 1.1.1 | Deploy KMCP & Echo MCP Server on AKS | paused      | Medium   | None                | Platform Engineering | 2025-12-05 |
+| 1.1.2 | Innovation Engine MCP Server         | blocked     | Low      | None                | Platform Engineering | 2025-12-05 |
+| 1.1.3 | Open-WebSearch on Local K8s          | paused      | Medium   | None                | Platform Engineering | 2025-12-05 |
 | 1.1.4 | Open-WebSearch on AKS                | completed   | High     | 1.1.3, 1.1.1        | Platform Engineering | 2025-12-02 |
 | 1.1.5 | ACR Deployment Documentation         | completed   | High     | None                | Platform Engineering | 2025-12-02 |
 | 1.1.6 | KAITO Installation Exec Docs         | paused      | High     | None                | Platform Engineering | 2025-12-03 |
 | 1.1.7 | Refactor KAITO Docs for Modularity   | in-progress | High     | 1.1.6 (Phase A)     | Platform Engineering | 2025-12-03 |
 | 1.2.1 | KAITO Deployment Video               | in-progress | High     | 1.1.7               | Developer Relations  | 2025-12-03 |
 | 1.2.2 | OpenWebSearch AKS Deployment Video   | not-started | High     | 1.1.4               | Developer Relations  | 2025-12-01 |
-| 1.2.3 | Integrated Chat App with MCP & KAITO | not-started | High     | 1.1.6 (minimal), 1.1.4 | Platform Engineering | 2025-12-02 |
+| 1.2.3 | Integrated Chat App with MCP & KAITO | not-started | Low      | 1.1.6 (minimal), 1.1.4 | Platform Engineering | 2025-12-05 |
 | 1.2.4 | End-to-End Solution Demo Video       | not-started | Medium   | 1.2.3, 1.2.1, 1.2.2 | Developer Relations  | 2025-12-01 |
 | 1.3.1 | KAITO Exec Doc Workflows Deck        | not-started | High     | 1.2.4               | Product Management   | 2025-12-01 |
 | 1.3.2 | KAITO Workflow Review Meeting        | not-started | High     | 1.3.1               | Product Management   | 2025-12-01 |
@@ -67,7 +67,7 @@ MCPaaS is building a comprehensive platform for developing, managing, and deploy
   - KMCP CRDs installed and operational (no CrashLoopBackOff)
   - Executable documentation covers: provision, deploy, verify, teardown
   - ACR integration optional but documented if included
-- **Priority:** High
+- **Priority:** Medium
 - **Responsible:** Platform Engineering
 - **Dependencies:** None (prerequisite: Azure subscription with sufficient quota)
 - **Progress:**
@@ -87,8 +87,8 @@ MCPaaS is building a comprehensive platform for developing, managing, and deploy
   3. Create and apply KMCP CRs
   4. Validate via MCP Inspector (port-forward or ingress)
   5. Document complete runbook with teardown
-- **Status:** Paused (deprioritized in favor of KAITO refactoring work)
-- **Last Updated:** 2025-12-03
+- **Status:** Paused (deprioritized to Medium in favor of KAITO refactoring work)
+- **Last Updated:** 2025-12-05
 
 ---
 
@@ -102,7 +102,7 @@ MCPaaS is building a comprehensive platform for developing, managing, and deploy
   - Complete documentation covering all deployment modes
   - Access controls and audit logging functional
   - Performance: p50 latency < 300ms for standard operations
-- **Priority:** High
+- **Priority:** Low
 - **Responsible:** Platform Engineering
 - **Dependencies:** None (prerequisite: Innovation Engine CLI installed and on PATH)
 - **Progress:**
@@ -145,7 +145,7 @@ MCPaaS is building a comprehensive platform for developing, managing, and deploy
   - Security review completed with usage constraints documented
   - Automated test suite covering happy/error paths
   - Deployment docs complete (local npx, container, K8s)
-- **Priority:** High
+- **Priority:** Medium
 - **Responsible:** Platform Engineering
 - **Dependencies:** None (self-contained TypeScript project)
 - **Progress:**
@@ -179,8 +179,8 @@ MCPaaS is building a comprehensive platform for developing, managing, and deploy
   7. Conduct security review
   8. Write automated acceptance test suite
 - **Notes:** Execute with: `ie execute docs/OpenWebSearch_On_K8s_Local.md`. Source: https://github.com/Aas-ee/open-webSearch (TypeScript, Apache-2.0)
-- **Status:** Paused (core functionality complete, hardening tasks deferred)
-- **Last Updated:** 2025-12-03
+- **Status:** Paused (core functionality complete, hardening tasks deferred, priority reduced to Medium)
+- **Last Updated:** 2025-12-05
 
 ---
 
@@ -487,7 +487,7 @@ MCPaaS is building a comprehensive platform for developing, managing, and deploy
   - Basic authentication configured
   - Resource limits and health checks in place
   - Executable documentation created
-- **Priority:** High
+- **Priority:** Low
 - **Responsible:** Platform Engineering
 - **Dependencies:** 1.1.6 (Phase A - working KAITO workspace), 1.1.4 (OpenWebSearch on AKS)
 - **Progress:**
@@ -505,8 +505,8 @@ MCPaaS is building a comprehensive platform for developing, managing, and deploy
   5. Integrate OpenWebSearch as MCP tool
   6. Test end-to-end with web-augmented queries
   7. Document as executable doc
-- **Notes:** Can proceed in parallel with 1.2.1 (video). Both just need working KAITO workspace.
-- **Last Updated:** 2025-12-02
+- **Notes:** Can proceed in parallel with 1.2.1 (video). Both just need working KAITO workspace. Priority reduced to Low as not blocking current sprint objectives.
+- **Last Updated:** 2025-12-05
 
 ---
 
@@ -831,7 +831,7 @@ MCPaaS is building a comprehensive platform for developing, managing, and deploy
 | Risk ID | Description                                                                | Impact | Likelihood | Mitigation Status                                                                       |
 | ------- | -------------------------------------------------------------------------- | ------ | ---------- | --------------------------------------------------------------------------------------- |
 | R-001   | Scope ambiguity between PRD vision and current experimental phase          | High   | High       | In Progress - PRD acknowledges phased approach, needs explicit milestone mapping        |
-| R-002   | Remote deployment test failures blocking IE MCP and Web Search validation  | High   | High       | Under Investigation - needs root cause analysis and debug instrumentation               |
+| R-002   | Remote deployment test failures blocking IE MCP validation                 | Low    | Medium     | Deprioritized - not blocking current sprint, can revisit when capacity allows           |
 | R-003   | Documentation drift with multiple incomplete exec docs                     | Medium | High       | Mitigation Needed - establish doc ownership, maintenance schedule, and freshness checks |
 | R-004   | Single-person dependency for platform engineering work                     | High   | Medium     | Awareness - need team expansion plan or clearer prioritization                          |
 | R-005   | Unclear path from current experimental work to PRD's full managed platform | Medium | High       | Planning Needed - roadmap alignment session required                                    |
@@ -840,7 +840,7 @@ MCPaaS is building a comprehensive platform for developing, managing, and deploy
 
 | Issue ID | Description                                                           | Priority | Owner                | Status |
 | -------- | --------------------------------------------------------------------- | -------- | -------------------- | ------ |
-| I-001    | IE MCP remote deployment test failing consistently                    | High     | Platform Engineering | Open   |
+| I-001    | IE MCP remote deployment test failing consistently                    | Low      | Platform Engineering | Open   |
 | I-002    | Open-WebSearch AKS deployment needs security review before production | High     | Platform Engineering | Open   |
 | I-003    | Missing monitoring/alerting integration for deployed MCP servers      | Medium   | Platform Engineering | Open   |
 | I-004    | No automated test suite for executable documentation                  | Medium   | Platform Engineering | Open   |
@@ -930,3 +930,5 @@ MCPaaS is building a comprehensive platform for developing, managing, and deploy
 - 2025-12-03 (evening): Paused tasks 1.1.1 (KMCP/Echo MCP) and 1.1.3 (OpenWebSearch local) to focus platform engineering resources on KAITO refactoring (1.1.7) and unblocking video production pipeline. Both paused tasks have core functionality working and can resume when capacity allows.
 - 2025-12-03 (late): Completed task 3.1.1 (Project Governance Setup). Foundational tracking infrastructure operational with tracker agent maintaining 18 tasks across 3 phases, comprehensive risk register, and dependency tracking. Removed outstanding governance refinement items as they will evolve organically with project needs.
 - 2025-12-03 (night): Paused task 1.1.6 (KAITO Installation validation) to avoid blocking refactor work. Validation will proceed after 1.1.7 completes with refactored docs. Started task 1.2.1 (KAITO Deployment Video) with script planning and preparation while waiting for 1.1.7 completion. Video outline complete in `presentations/kaito-deployment-video-outline.md` covering full E2E flow with emphasis on executable docs value proposition.
+- 2025-12-05: Reduced priority of tasks 1.1.2 (Innovation Engine MCP Server) and 1.2.3 (Integrated Chat App) from High to Low. These tasks are not blocking current sprint objectives focused on KAITO documentation refactoring and video production. Remote deployment debugging and chat app integration can be revisited when team capacity allows and core KAITO workflow is established.
+- 2025-12-05: Reduced priority of tasks 1.1.1 (KMCP & Echo MCP Server on AKS) and 1.1.3 (Open-WebSearch on Local K8s) from High to Medium. Both tasks have core functionality working and remain paused to maintain focus on KAITO work stream. They can resume at Medium priority when KAITO documentation and video pipeline are complete.
