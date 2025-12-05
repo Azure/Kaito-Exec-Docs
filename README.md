@@ -68,6 +68,36 @@ Now we will deploy this to production on AKS
 - Deploy a remote AKS cluster with KMCP controller
 - Deploy MCP Server to AKS and connect to it using MCP Inspector
 
+### KAITO AI Workload Deployment Workflow
+
+Deploy AI models on AKS using KAITO with this three-phase approach:
+
+**Phase 1: Pre-Flight Validation (Optional)**
+- Run `docs/Check_VM_Quota.md` to validate GPU quota in your subscription
+- Ensures you have sufficient NC-series or ND-series VM quota
+- Provides remediation steps if quota is insufficient
+
+**Phase 2: Platform Installation (One-time)**
+- Run `docs/Install_Kaito_On_AKS.md` to set up KAITO on your AKS cluster
+- Installs KAITO workspace controller
+- Configures GPU Provisioner with workload identity
+- Results in KAITO-ready cluster (no models deployed yet)
+
+**Phase 3: Model Deployment (Repeatable)**
+- Run `docs/incubation/Deploy_Kaito_Workspace.md` to deploy AI models
+- Creates workspace custom resources for specific models
+- Triggers automatic GPU node provisioning
+- Exposes OpenAI-compatible inference endpoints
+- Can be repeated for multiple models on same cluster
+
+**Advanced Workflows:**
+- `docs/incubation/Deploy_Additional_Model_Workspaces_on_Kaito.md` - 
+  Multi-model patterns
+- `docs/incubation/Deploy_RAG_On_Kaito_AKS.md` - Retrieval-augmented 
+  generation
+- `docs/incubation/Configure_Diagnostics_for_Kaito.md` - Monitoring and 
+  diagnostics
+
 ## Resources
 
 - [mcp-dev-tools](https://github.com/rgardler-msft/mcp-dev-tools) - Development tools for MCP projects
