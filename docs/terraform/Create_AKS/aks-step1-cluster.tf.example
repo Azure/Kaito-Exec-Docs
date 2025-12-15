@@ -1,0 +1,39 @@
+# Reference existing Resource Group
+# This assumes you've already created a resource group using Create_Resource_Group.md
+
+data "azurerm_resource_group" "existing" {
+  name = var.azure_resource_group
+}
+
+# AKS Cluster with System Node Pool
+# Managed Kubernetes control plane and system nodes
+
+resource "azurerm_kubernetes_cluster" "aks" {
+  name                = local.cluster_name
+  location            = data.azurerm_resource_group.existing.location
+  resource_group_name = data.azurerm_resource_group.existing.name
+  dns_prefix          = local.cluster_name
+  kubernetes_version  = var.aks_version != "" ? var.aks_version : null
+
+  default_node_pool {
+    name       = var.aks_system_nodepool_name
+    node_count = var.aks_system_node_count
+    vm_size    = var.aks_node_vm_size
+    type       = "VirtualMachineScaleSets"
+  }
+
+  identity {
+    type = "SystemAssigned"
+  }
+
+  network_profile {
+    network_plugin    = "azure"
+    load_balancer_sku = "standard"
+  }
+
+  tags = {
+    Environment = "Development"
+    ManagedBy   = "Terraform"
+    Hash        = local.computed_hash
+  }
+}

@@ -1,0 +1,17 @@
+# Azure Configuration for Resource Group
+# Copy this file to terraform.tfvars and customize
+
+# Required: Your Azure subscription ID
+# Get this with: az account show --query id -o tsv
+azure_subscription_id = "00000000-0000-0000-0000-000000000000"
+
+# Optional: Override defaults below
+
+# Unique identifier for resource naming (default: auto-generated timestamp)
+# hash = "2512081900"
+
+# Azure region (default: eastus2)
+# azure_location = "eastus2"
+
+# Resource group name (default: rg_aks_<hash>)
+# azure_resource_group = "rg_my_project"

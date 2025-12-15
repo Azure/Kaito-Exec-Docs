@@ -94,10 +94,41 @@ that hide values unless secrecy is explicitly justified.
 - 80-character line wrapping, spaces over tabs, ASCII text.
 - Each section begins with a short intro paragraph followed by `Summary:` and
 bullet points capturing the key outcomes.
+- Headings must be descriptive and must not include numeric prefixes such as
+  "Step 1", "1.", or similar sequencing text; use the document structure and
+  execution order instead of numbering in titles.
 - Code blocks must remain idempotent and avoid `|| true`, redirects to
 `/dev/null`, or silent error suppression without explanatory comments.
 - Prefer diagnostic improvements (extra validation, clearer output) when in
 doubt.
+
+## Terraform Style Guide
+
+- **Shared resource group prerequisite**: Any executable doc that creates
+  Azure resources with Terraform must list `docs/terraform/Create_Resource_Group.md`
+  as a prerequisite. That doc is responsible for creating the initial
+  `main.tf` and establishing the baseline Azure resource group and
+  providers.
+- **One doc, one `.tf` file**: Each Terraform-focused exec doc must create a
+  new `.tf` file alongside `main.tf` (for example, `aks.tf` for an AKS
+  cluster, `acr.tf` for a registry). Do not modify `main.tf` directly except
+  in `Create_Resource_Group.md`.
+- **Reuse prerequisite resources**: Follow-on `.tf` files must reference
+  resources defined in prerequisite docs instead of re-creating them. For
+  example, an `aks.tf` file should use the resource group from
+  `Create_Resource_Group.md` via Terraform references (e.g.
+  `azurerm_resource_group.main.name`) rather than defining a new resource
+  group.
+- **Single module per directory**: Split Terraform configuration by
+  responsibility into multiple `.tf` files in the same directory; rely on
+  Terraform's automatic loading instead of modules for intra-doc structure.
+  Use explicit `module` blocks only when referencing child modules in other
+  directories.
+- **Consistent naming and variables**: Align Terraform variable and resource
+  names with the environment variables defined in the exec doc (for example,
+  `AKS_CLUSTER_NAME`, `RESOURCE_GROUP_NAME`). Avoid hard-coded names; pass
+  values via `terraform.tfvars` or `-var` flags wired to environment
+  variables in the doc.
 
 ## Escalation & Remediation
 

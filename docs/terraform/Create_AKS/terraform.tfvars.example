@@ -1,0 +1,37 @@
+# Azure Configuration for AKS
+# Copy this file to terraform.tfvars and customize for your environment
+
+# Required: Your Azure subscription ID
+# Get this with: az account show --query id -o tsv
+azure_subscription_id = "00000000-0000-0000-0000-000000000000"
+
+# Required: Name of existing resource group (created via Create_Resource_Group.md)
+# Get this with: cd ../Create_Resource_Group && terraform output -raw resource_group_name
+azure_resource_group = "rg_aks_2512081900"
+
+# Optional: Override defaults below
+
+# Unique identifier for resource naming (default: auto-generated timestamp)
+# hash = "2512081800"
+
+# Azure region (default: eastus2)
+# azure_location = "eastus2"
+
+
+
+# AKS cluster name (default: aks-<hash>)
+# aks_cluster_name = "aks-custom"
+
+# Kubernetes version (default: latest stable)
+# aks_version = "1.28.3"
+
+# System node pool configuration
+# aks_system_node_count = 1
+# aks_system_nodepool_name = "system"
+
+# User node pool configuration (set to 0 to skip)
+# aks_user_node_count = 1
+# aks_user_nodepool_name = "user"
+
+# Node VM size for both pools
+# aks_node_vm_size = "Standard_D4s_v5"
